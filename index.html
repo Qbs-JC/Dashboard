@@ -2,51 +2,154 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>Company Live Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company IoT Dashboard</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
-        body { font-family: sans-serif; background: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; min-width: 250px; }
-        .value { font-size: 3.5em; font-weight: bold; color: #2c3e50; margin: 20px 0; }
-        .unit { font-size: 0.5em; color: #7f8c8d; }
-        #status { font-size: 0.8em; color: #e67e22; font-weight: bold; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        header {
+            background-color: #ffffff;
+            width: 100%;
+            padding: 20px 0;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        .status-bar {
+            font-size: 0.9em;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            width: 90%;
+            max-width: 1000px;
+        }
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .card:hover { transform: translateY(-5px); }
+        .label { color: #666; font-size: 0.85em; text-transform: uppercase; margin-bottom: 10px; }
+        .value { font-size: 2.2em; font-weight: bold; color: #333; }
+        .unit { font-size: 0.4em; color: #999; margin-left: 5px; }
+        
+        /* Farben für verschiedene Werte */
+        .temp { color: #ff5722; }
+        .hum { color: #2196f3; }
+        .co2 { color: #4caf50; }
+        .tvoc { color: #9c27b0; }
+
+        #error-msg {
+            color: #d32f2f;
+            background: #ffcdd2;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
     </style>
 </head>
 <body>
 
+<header>
+    <h1>Sensor Monitor</h1>
+    <div id="status" class="status-bar" style="color: #e67e22;">⏳ Initialisierung...</div>
+</header>
+
+<div id="error-msg"></div>
+
+<div class="container">
     <div class="card">
-        <h2 style="color: #34495e;">Sensor Monitor</h2>
-        <div id="temp-value" class="value">--.-<span class="unit">°C</span></div>
-        <div id="status">Verbindung wird aufgebaut...</div>
+        <div class="label">Temperatur</div>
+        <div class="value temp"><span id="temp">--.-</span><span class="unit">°C</span></div>
     </div>
 
-    <script>
-        // --- KONFIGURATION ---
-        const broker = 'wss://g306b096.ala.eu-central-1.emqxsl.com:8084/mqtt';
-        const options = {
-            username: 'web_user',     // In EMQX unter 'Authentication' erstellt
-            password: 'web_password123'  // In EMQX unter 'Authentication' erstellt
-        };
-        const topic = 'company/sensor1';    // Muss mit dem Topic im ESP32 übereinstimmen
+    <div class="card">
+        <div class="label">Luftfeuchtigkeit</div>
+        <div class="value hum"><span id="hum">--</span><span class="unit">%</span></div>
+    </div>
 
-        // --- MQTT LOGIK ---
-        const client = mqtt.connect(broker, options);
+    <div class="card">
+        <div class="label">CO2 Gehalt</div>
+        <div class="value co2"><span id="co2">----</span><span class="unit">ppm</span></div>
+    </div>
+
+    <div class="card">
+        <div class="label">TVOC</div>
+        <div class="value tvoc"><span id="tvoc">----</span><span class="unit">ppb</span></div>
+    </div>
+</div>
+
+<script>
+    // 1. Geräte-ID aus der URL lesen (?id=MAC_ADRESSE)
+    const urlParams = new URLSearchParams(window.location.search);
+    const deviceId = urlParams.get('id');
+
+    // 2. EMQX Verbindungsdaten
+    const brokerUrl = 'wss://g306b096.ala.eu-central-1.emqxsl.com:8084/mqtt';
+    const options = {
+        username: 'web_user',        // Dein in EMQX erstellter User
+        password: 'web_password123', // Dein in EMQX erstelltes Passwort
+        clean: true
+    };
+
+    if (!deviceId) {
+        const errorDiv = document.getElementById('error-msg');
+        errorDiv.style.display = 'block';
+        errorDiv.innerText = "⚠️ Keine Geräte-ID gefunden! Bitte hänge '?id=DEINE_MAC' an die URL an.";
+        document.getElementById('status').innerText = "🔴 Fehler";
+    } else {
+        // Dynamisches Topic basierend auf der ID
+        const topic = `sensors/${deviceId}/data`;
+        
+        const client = mqtt.connect(brokerUrl, options);
 
         client.on('connect', () => {
-            document.getElementById('status').innerText = "🟢 ONLINE";
+            document.getElementById('status').innerText = `🟢 ONLINE - Gerät: ${deviceId}`;
             document.getElementById('status').style.color = "green";
             client.subscribe(topic);
         });
 
         client.on('message', (t, message) => {
-            // Zeigt die Nachricht im Feld an
-            document.getElementById('temp-value').innerHTML = message.toString() + '<span class="unit">°C</span>';
+            try {
+                // JSON Daten verarbeiten
+                const data = JSON.parse(message.toString());
+                
+                if(data.temp !== undefined) document.getElementById('temp').innerText = data.temp;
+                if(data.hum !== undefined)  document.getElementById('hum').innerText = data.hum;
+                if(data.co2 !== undefined)  document.getElementById('co2').innerText = data.co2;
+                if(data.tvoc !== undefined) document.getElementById('tvoc').innerText = data.tvoc;
+            } catch (e) {
+                console.error("Fehler beim Parsen der Daten:", e);
+            }
         });
 
         client.on('error', (err) => {
-            document.getElementById('status').innerText = "🔴 FEHLER: " + err;
+            document.getElementById('status').innerText = "🔴 VERBINDUNGSFEHLER";
             document.getElementById('status').style.color = "red";
         });
-    </script>
+
+        client.on('offline', () => {
+            document.getElementById('status').innerText = "🟡 OFFLINE (Reconnecting...)";
+            document.getElementById('status').style.color = "#e67e22";
+        });
+    }
+</script>
+
 </body>
 </html>
