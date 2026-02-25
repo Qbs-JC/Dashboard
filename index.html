@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Company Live Dashboard</title>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; min-width: 250px; }
+        .value { font-size: 3.5em; font-weight: bold; color: #2c3e50; margin: 20px 0; }
+        .unit { font-size: 0.5em; color: #7f8c8d; }
+        #status { font-size: 0.8em; color: #e67e22; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2 style="color: #34495e;">Sensor Monitor</h2>
+        <div id="temp-value" class="value">--.-<span class="unit">°C</span></div>
+        <div id="status">Verbindung wird aufgebaut...</div>
+    </div>
+
+    <script>
+        // --- KONFIGURATION ---
+        const broker = 'wss://g306b096.ala.eu-central-1.emqxsl.com:8084/mqtt';
+        const options = {
+            username: 'Test',     // In EMQX unter 'Authentication' erstellt
+            password: 'Test123'  // In EMQX unter 'Authentication' erstellt
+        };
+        const topic = 'company/sensor1';    // Muss mit dem Topic im ESP32 übereinstimmen
+
+        // --- MQTT LOGIK ---
+        const client = mqtt.connect(broker, options);
+
+        client.on('connect', () => {
+            document.getElementById('status').innerText = "🟢 ONLINE";
+            document.getElementById('status').style.color = "green";
+            client.subscribe(topic);
+        });
+
+        client.on('message', (t, message) => {
+            // Zeigt die Nachricht im Feld an
+            document.getElementById('temp-value').innerHTML = message.toString() + '<span class="unit">°C</span>';
+        });
+
+        client.on('error', (err) => {
+            document.getElementById('status').innerText = "🔴 FEHLER: " + err;
+            document.getElementById('status').style.color = "red";
+        });
+    </script>
+</body>
+</html>
