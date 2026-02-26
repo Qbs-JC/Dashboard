@@ -240,12 +240,24 @@
             const cutoff = new Date(now.getTime() - rangeMs);
             
             console.log(`Lade Daten für ${timeRange} (von ${cutoff.toLocaleString()} bis ${now.toLocaleString()})...`);
+            console.log(`Suche nach device_id: ${deviceId}`);
             
-            const { data, error } = await sbClient.from(CONFIG.dbTable)
+            // Flexiblere Suche: Versuche verschiedene Formate
+            let query = sbClient.from(CONFIG.dbTable)
                 .select('created_at, temperature, humidity, tvoc, co2')
-                .eq(CONFIG.dbMacColumn, deviceId)
                 .gte('created_at', cutoff.toISOString())
                 .order('created_at', { ascending: true });
+            
+            // Suche mit LIKE - findet auch "esp32-123456/sensor" wenn deviceId "123456" ist
+            if (deviceId.includes('esp32-') || deviceId.includes('/')) {
+                // Vollständige device_id wurde übergeben
+                query = query.eq(CONFIG.dbMacColumn, deviceId);
+            } else {
+                // Nur die Nummer wurde übergeben - suche mit LIKE
+                query = query.like(CONFIG.dbMacColumn, `%${deviceId}%`);
+            }
+            
+            const { data, error } = await query;
 
             if (error) { 
                 console.error("DB Abfragefehler:", error); 
@@ -254,6 +266,9 @@
             }
 
             console.log(`${data ? data.length : 0} Datenpunkte geladen`);
+            if (data && data.length > 0) {
+                console.log("Erste 3 Einträge:", data.slice(0, 3));
+            }
 
             if (data && data.length > 0) {
                 const timeFormat = getTimeFormat(timeRange);
