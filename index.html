@@ -3,119 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QBS Global Command Center | Enterprise IoT</title>
+    <title>QBS Dynamic Analytics | Enterprise IoT</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
 
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f0f2f5; }
-        .glass-panel { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(12px); border: 1px solid rgba(226, 232, 240, 0.6); }
-        .chart-container { min-height: 300px; }
-        .status-pulse { animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { transform: scale(0.95); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.7; } 100% { transform: scale(0.95); opacity: 1; } }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f1f5f9; }
+        .active-metric-card { border-color: #3b82f6 !important; background-color: #eff6ff !important; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.1) !important; }
+        .chart-layer { display: none; transition: all 0.3s ease; }
+        .chart-layer.active { display: block; }
+        .live-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; }
     </style>
 </head>
-<body class="text-slate-900 antialiased">
+<body class="text-slate-900">
 
-    <nav class="bg-slate-900 text-white px-8 py-4 flex justify-between items-center sticky top-0 z-[100] shadow-2xl">
-        <div class="flex items-center gap-5">
-            <div class="w-12 h-12 bg-gradient-to-tr from-blue-600 to-indigo-400 rounded-2xl flex items-center justify-center shadow-lg">
-                <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+    <nav class="bg-slate-900 text-white px-8 py-5 flex justify-between items-center sticky top-0 z-[100] shadow-xl">
+        <div class="flex items-center gap-4">
+            <div class="p-2.5 bg-blue-600 rounded-2xl shadow-lg shadow-blue-500/20">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
             </div>
             <div>
-                <h1 class="text-xl font-extrabold tracking-tight">QBS Command Center</h1>
-                <p class="text-[10px] text-blue-400 font-black uppercase tracking-[0.3em]">Precision Sensor Network</p>
+                <h1 class="text-xl font-bold tracking-tight uppercase tracking-widest">QBS Global Dashboard</h1>
+                <p class="text-[9px] text-blue-400 font-bold uppercase tracking-[0.4em]">Real-Time Infrastructure Monitoring</p>
             </div>
         </div>
         
         <div class="flex items-center gap-6">
-            <div class="flex bg-slate-800 p-1 rounded-xl border border-slate-700">
-                <button onclick="updateTimeframe(1)" id="t-1" class="px-4 py-1.5 text-[10px] font-bold rounded-lg transition-all bg-blue-600 text-white shadow-lg">1D</button>
-                <button onclick="updateTimeframe(5)" id="t-5" class="px-4 py-1.5 text-[10px] font-bold rounded-lg transition-all text-slate-400 hover:text-white">5D</button>
-                <button onclick="updateTimeframe(30)" id="t-30" class="px-4 py-1.5 text-[10px] font-bold rounded-lg transition-all text-slate-400 hover:text-white">30D</button>
-            </div>
-            <div id="status-badge" class="flex items-center gap-2 bg-slate-800 px-4 py-2 rounded-full border border-slate-700 text-[10px] font-bold tracking-widest text-slate-400">
-                <span class="w-2 h-2 bg-slate-500 rounded-full status-pulse"></span>
-                SYSTEM STANDBY
+            <div id="status-badge" class="bg-slate-800 border border-slate-700 px-4 py-2 rounded-2xl text-[10px] font-black text-slate-400">
+                <span class="live-dot bg-slate-500"></span> SYNCING WITH CLOUD...
             </div>
         </div>
     </nav>
 
-    <main class="max-w-[1800px] mx-auto p-8 space-y-10">
+    <main class="max-w-[1600px] mx-auto p-8 space-y-10">
         
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div class="glass-panel rounded-[2rem] p-8 shadow-xl relative overflow-hidden group">
-                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <svg class="w-20 h-20 text-blue-900" fill="currentColor" viewBox="0 0 20 20"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <button onclick="switchMetric('temp')" id="btn-temp" class="active-metric-card bg-white border border-slate-200 rounded-[2rem] p-6 text-left transition-all hover:border-blue-300">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="p-2 bg-orange-100 text-orange-600 rounded-xl"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg></span>
+                    <span class="text-[10px] font-black text-slate-300 uppercase italic">Live-Feed</span>
                 </div>
-                <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Temperatur</h3>
-                <div id="gauge-temp" class="h-48"></div>
-                <div class="text-center -mt-8">
-                    <span id="val-temp" class="text-4xl font-black text-slate-900">--.-</span><span class="text-slate-400 font-bold ml-1">°C</span>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Temperatur</p>
+                <div class="flex items-baseline gap-1 mt-1">
+                    <span id="val-temp" class="text-3xl font-black text-slate-900">--.-</span><span class="text-sm text-slate-400 font-bold">°C</span>
                 </div>
-            </div>
+            </button>
 
-            <div class="glass-panel rounded-[2rem] p-8 shadow-xl">
-                <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Luftfeuchtigkeit</h3>
-                <div id="gauge-hum" class="h-48"></div>
-                <div class="text-center -mt-8">
-                    <span id="val-hum" class="text-4xl font-black text-slate-900">--</span><span class="text-slate-400 font-bold ml-1">%</span>
+            <button onclick="switchMetric('hum')" id="btn-hum" class="bg-white border border-slate-200 rounded-[2rem] p-6 text-left transition-all hover:border-blue-300">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="p-2 bg-blue-100 text-blue-600 rounded-xl"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-14L4 7m8 4v10M4 7v10l8 4"/></svg></span>
+                    <span class="text-[10px] font-black text-slate-300 uppercase italic">Live-Feed</span>
                 </div>
-            </div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Feuchtigkeit</p>
+                <div class="flex items-baseline gap-1 mt-1">
+                    <span id="val-hum" class="text-3xl font-black text-slate-900">--</span><span class="text-sm text-slate-400 font-bold">%</span>
+                </div>
+            </button>
 
-            <div class="glass-panel rounded-[2rem] p-8 shadow-xl">
-                <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">CO2 Konzentration</h3>
-                <div id="gauge-co2" class="h-48"></div>
-                <div class="text-center -mt-8">
-                    <span id="val-co2" class="text-4xl font-black text-slate-900">----</span><span class="text-slate-400 font-bold ml-1">ppm</span>
+            <button onclick="switchMetric('co2')" id="btn-co2" class="bg-white border border-slate-200 rounded-[2rem] p-6 text-left transition-all hover:border-blue-300">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="p-2 bg-emerald-100 text-emerald-600 rounded-xl"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></span>
+                    <span class="text-[10px] font-black text-slate-300 uppercase italic">Live-Feed</span>
                 </div>
-            </div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">CO2 Gehalt</p>
+                <div class="flex items-baseline gap-1 mt-1">
+                    <span id="val-co2" class="text-3xl font-black text-slate-900">----</span><span class="text-sm text-slate-400 font-bold">ppm</span>
+                </div>
+            </button>
 
-            <div class="glass-panel rounded-[2rem] p-8 shadow-xl">
-                <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">TVOC (Luftqualität)</h3>
-                <div id="gauge-tvoc" class="h-48"></div>
-                <div class="text-center -mt-8">
-                    <span id="val-tvoc" class="text-4xl font-black text-slate-900">----</span><span class="text-slate-400 font-bold ml-1">ppb</span>
+            <button onclick="switchMetric('tvoc')" id="btn-tvoc" class="bg-white border border-slate-200 rounded-[2rem] p-6 text-left transition-all hover:border-blue-300">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="p-2 bg-purple-100 text-purple-600 rounded-xl"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/></svg></span>
+                    <span class="text-[10px] font-black text-slate-300 uppercase italic">Live-Feed</span>
                 </div>
-            </div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">TVOC</p>
+                <div class="flex items-baseline gap-1 mt-1">
+                    <span id="val-tvoc" class="text-3xl font-black text-slate-900">----</span><span class="text-sm text-slate-400 font-bold">ppb</span>
+                </div>
+            </button>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div class="glass-panel rounded-[2.5rem] p-10 shadow-lg">
-                <div class="flex justify-between items-center mb-8 border-b border-slate-100 pb-4">
-                    <h4 class="font-black text-lg uppercase tracking-tight text-slate-700">Historie: Temperatur</h4>
-                    <span class="text-[10px] bg-orange-100 text-orange-600 px-3 py-1 rounded-full font-bold">SENSOR_ALPHA_01</span>
+        <div class="bg-white border border-slate-200 rounded-[3rem] p-10 shadow-sm relative">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                <div>
+                    <h3 class="text-2xl font-black text-slate-800 tracking-tight italic" id="main-chart-title uppercase">Temperatur Analyse</h3>
+                    <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">Geräte-ID: <span id="info-id" class="text-blue-600">---</span></p>
                 </div>
-                <div id="chart-temp" class="chart-container"></div>
+                <div class="flex bg-slate-100 p-1.5 rounded-2xl">
+                    <button onclick="changeInterval(1)" id="i-1" class="px-5 py-2 text-[10px] font-black rounded-xl transition-all bg-slate-900 text-white shadow-lg">1 TAG</button>
+                    <button onclick="changeInterval(5)" id="i-5" class="px-5 py-2 text-[10px] font-black rounded-xl transition-all text-slate-400 hover:text-slate-900">5 TAGE</button>
+                    <button onclick="changeInterval(30)" id="i-30" class="px-5 py-2 text-[10px] font-black rounded-xl transition-all text-slate-400 hover:text-slate-900">30 TAGE</button>
+                </div>
             </div>
 
-            <div class="glass-panel rounded-[2.5rem] p-10 shadow-lg">
-                <div class="flex justify-between items-center mb-8 border-b border-slate-100 pb-4">
-                    <h4 class="font-black text-lg uppercase tracking-tight text-slate-700">Historie: Luftfeuchtigkeit</h4>
-                    <span class="text-[10px] bg-blue-100 text-blue-600 px-3 py-1 rounded-full font-bold">HYGRO_MODULE</span>
-                </div>
-                <div id="chart-hum" class="chart-container"></div>
-            </div>
-
-            <div class="glass-panel rounded-[2.5rem] p-10 shadow-lg">
-                <div class="flex justify-between items-center mb-8 border-b border-slate-100 pb-4">
-                    <h4 class="font-black text-lg uppercase tracking-tight text-slate-700">Historie: CO2 (Luftgüte)</h4>
-                    <span class="text-[10px] bg-emerald-100 text-emerald-600 px-3 py-1 rounded-full font-bold">GAS_SPECTROMETER</span>
-                </div>
-                <div id="chart-co2" class="chart-container"></div>
-            </div>
-
-            <div class="glass-panel rounded-[2.5rem] p-10 shadow-lg">
-                <div class="flex justify-between items-center mb-8 border-b border-slate-100 pb-4">
-                    <h4 class="font-black text-lg uppercase tracking-tight text-slate-700">Historie: TVOC</h4>
-                    <span class="text-[10px] bg-purple-100 text-purple-600 px-3 py-1 rounded-full font-bold">VOC_VOLATILE</span>
-                </div>
-                <div id="chart-tvoc" class="chart-container"></div>
-            </div>
+            <div id="layer-temp" class="chart-layer active"><div id="chart-temp"></div></div>
+            <div id="layer-hum" class="chart-layer"><div id="chart-hum"></div></div>
+            <div id="layer-co2" class="chart-layer"><div id="chart-co2"></div></div>
+            <div id="layer-tvoc" class="chart-layer"><div id="chart-tvoc"></div></div>
         </div>
     </main>
 
@@ -130,63 +118,43 @@
             mqttPass: 'web_password123'
         };
 
-        const sbClient = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
+        const METRICS = {
+            temp: { label: 'Temperatur', color: '#f97316', unit: '°C' },
+            hum: { label: 'Feuchtigkeit', color: '#3b82f6', unit: '%' },
+            co2: { label: 'CO2 Gehalt', color: '#10b981', unit: 'ppm' },
+            tvoc: { label: 'TVOC Index', color: '#a855f7', unit: 'ppb' }
+        };
+
+        let currentInterval = 1;
+        let activeMetric = 'temp';
+        const charts = {};
         const urlParams = new URLSearchParams(window.location.search);
         const deviceId = urlParams.get('id');
-        let currentDays = 1;
-        
-        const charts = {};
-        const gauges = {};
+        document.getElementById('info-id').innerText = deviceId || '---';
 
-        // Gauge Konfiguration
-        const gaugeOptions = (color, max) => ({
-            chart: { type: 'radialBar', height: 240, sparkline: { enabled: true } },
-            series: [0],
-            colors: [color],
-            plotOptions: {
-                radialBar: {
-                    startAngle: -90, endAngle: 90,
-                    track: { background: "#e2e8f0", strokeWidth: '97%' },
-                    dataLabels: { show: false }
-                }
-            },
-            grid: { padding: { top: -10 } },
-            stroke: { lineCap: "round" }
-        });
+        const sbClient = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
 
-        // Area Chart Konfiguration
-        const areaOptions = (color, name) => ({
-            chart: { type: 'area', height: 300, toolbar: { show: false }, animations: { enabled: true, easing: 'linear', speed: 800 } },
-            series: [{ name: name, data: [] }],
-            colors: [color],
-            dataLabels: { enabled: false },
-            stroke: { curve: 'smooth', width: 3 },
-            fill: { type: 'gradient', gradient: { opacityFrom: 0.5, opacityTo: 0.05 } },
-            xaxis: { type: 'datetime', labels: { style: { colors: '#94a3b8', fontWeight: 600 } } },
-            yaxis: { labels: { style: { colors: '#94a3b8', fontWeight: 600 } } },
-            grid: { borderColor: '#f1f5f9', strokeDashArray: 5 }
-        });
-
-        function initAllCharts() {
-            const metrics = [
-                { id: 'temp', color: '#f97316', label: 'Temp', max: 50 },
-                { id: 'hum', color: '#3b82f6', label: 'Hum', max: 100 },
-                { id: 'co2', color: '#10b981', label: 'CO2', max: 2000 },
-                { id: 'tvoc', color: '#a855f7', label: 'TVOC', max: 500 }
-            ];
-
-            metrics.forEach(m => {
-                gauges[m.id] = new ApexCharts(document.querySelector(`#gauge-${m.id}`), gaugeOptions(m.color, m.max));
-                gauges[m.id].render();
-                
-                charts[m.id] = new ApexCharts(document.querySelector(`#chart-${m.id}`), areaOptions(m.color, m.label));
-                charts[m.id].render();
+        // Alle 4 Graphen initialisieren
+        function initCharts() {
+            Object.keys(METRICS).forEach(m => {
+                const options = {
+                    chart: { type: 'area', height: 450, toolbar: { show: false }, animations: { enabled: true, easing: 'linear', speed: 800 }, zoom: { enabled: false } },
+                    colors: [METRICS[m].color],
+                    stroke: { curve: 'smooth', width: 4 },
+                    fill: { type: 'gradient', gradient: { opacityFrom: 0.4, opacityTo: 0.05 } },
+                    series: [{ name: METRICS[m].label, data: [] }],
+                    xaxis: { type: 'datetime', labels: { style: { colors: '#94a3b8', fontWeight: 600 } } },
+                    yaxis: { labels: { style: { colors: '#94a3b8', fontWeight: 600 } } },
+                    grid: { borderColor: '#f1f5f9', strokeDashArray: 5 }
+                };
+                charts[m] = new ApexCharts(document.querySelector(`#chart-${m}`), options);
+                charts[m].render();
             });
         }
 
-        async function fetchHistory() {
+        async function updateData() {
             if (!deviceId) return;
-            const pastDate = new Date(Date.now() - (currentDays * 24 * 60 * 60 * 1000));
+            const pastDate = new Date(Date.now() - (currentInterval * 24 * 60 * 60 * 1000));
             
             const { data, error } = await sbClient
                 .from(CONFIG.dbTable)
@@ -196,62 +164,62 @@
                 .order('created_at', { ascending: true });
 
             if (!error && data) {
-                ['temp', 'hum', 'co2', 'tvoc'].forEach(m => {
+                Object.keys(METRICS).forEach(m => {
                     const points = data.map(d => ({ x: new Date(d.created_at).getTime(), y: d[m] }));
                     charts[m].updateSeries([{ data: points }]);
-                    
-                    if (data.length > 0) {
-                        const lastVal = data[data.length-1][m];
-                        updateRealtimeUI(m, lastVal);
-                    }
+                    if(data.length > 0) document.getElementById(`val-${m}`).innerText = data[data.length-1][m];
                 });
             }
         }
 
-        function updateRealtimeUI(metric, val) {
-            document.getElementById(`val-${metric}`).innerText = val;
-            const maxMap = { temp: 50, hum: 100, co2: 2000, tvoc: 1000 };
-            const percent = Math.min((val / maxMap[metric]) * 100, 100);
-            gauges[metric].updateSeries([percent]);
-        }
-
-        function updateTimeframe(days) {
-            currentDays = days;
-            ['t-1', 't-5', 't-30'].forEach(id => {
-                const btn = document.getElementById(id);
-                btn.classList.remove('bg-blue-600', 'text-white', 'shadow-lg');
-                btn.classList.add('text-slate-400');
+        // Umschalten zwischen Metriken (Instant!)
+        function switchMetric(m) {
+            activeMetric = m;
+            // UI Buttons anpassen
+            Object.keys(METRICS).forEach(key => {
+                document.getElementById(`btn-${key}`).classList.remove('active-metric-card');
+                document.getElementById(`layer-${key}`).classList.remove('active');
             });
-            document.getElementById(`t-${days}`).classList.replace('text-slate-400', 'bg-blue-600');
-            document.getElementById(`t-${days}`).classList.add('text-white', 'shadow-lg');
-            fetchHistory();
+            document.getElementById(`btn-${m}`).classList.add('active-metric-card');
+            document.getElementById(`layer-${m}`).classList.add('active');
+            document.getElementById('main-chart-title').innerText = `${METRICS[m].label} Analyse`;
         }
 
-        function connectMqtt() {
+        function changeInterval(days) {
+            currentInterval = days;
+            ['i-1', 'i-5', 'i-30'].forEach(id => {
+                document.getElementById(id).classList.remove('bg-slate-900', 'text-white', 'shadow-lg');
+                document.getElementById(id).classList.add('text-slate-400');
+            });
+            document.getElementById(`i-${days}`).classList.replace('text-slate-400', 'bg-slate-900');
+            document.getElementById(`i-${days}`).classList.add('text-white', 'shadow-lg');
+            updateData();
+        }
+
+        function initMqtt() {
             if (!deviceId) return;
             const client = mqtt.connect(CONFIG.mqttBroker, { username: CONFIG.mqttUser, password: CONFIG.mqttPass });
-
             client.on('connect', () => {
                 const badge = document.getElementById('status-badge');
-                badge.innerHTML = '<span class="w-2 h-2 bg-green-500 rounded-full status-pulse shadow-[0_0_10px_#22c55e]"></span> ANALYTICS ACTIVE';
+                badge.innerHTML = '<span class="live-dot bg-green-500 shadow-[0_0_10px_#22c55e]"></span> SYSTEM OPERATIONAL';
                 badge.classList.replace('text-slate-400', 'text-green-500');
                 client.subscribe(`esp32-${deviceId}/sensor`);
             });
-
             client.on('message', (t, msg) => {
                 const data = JSON.parse(msg.toString());
-                ['temp', 'hum', 'co2', 'tvoc'].forEach(m => {
+                Object.keys(METRICS).forEach(m => {
                     if (data[m] !== undefined) {
-                        updateRealtimeUI(m, data[m]);
+                        document.getElementById(`val-${m}`).innerText = data[m];
+                        // Wichtig: Alle Graphen im Hintergrund updaten!
                         charts[m].appendData([{ data: [{ x: new Date().getTime(), y: data[m] }] }]);
                     }
                 });
             });
         }
 
-        initAllCharts();
+        initCharts();
         if (deviceId) {
-            fetchHistory().then(connectMqtt);
+            updateData().then(initMqtt);
         }
     </script>
 </body>
