@@ -3,14 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QBS Command Center | Stable Edition</title>
+    <title>QBS Command Center | Enterprise Layout</title>
+    <link rel="icon" href="data:,">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f1f5f9; }
-        .dashboard-card { background: white; border-radius: 1.5rem; padding: 1.5rem; border: 1px solid #e2e8f0; }
+        .dashboard-card { background: white; border-radius: 1.5rem; padding: 1.5rem; border: 1px solid #e2e8f0; shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1); }
+        .time-btn { transition: all 0.2s; border: 1px solid #cbd5e1; padding: 0.4rem 0.8rem; font-size: 0.7rem; font-weight: 700; border-radius: 0.5rem; }
+        .time-btn.active { background-color: #1e293b; color: white; border-color: #1e293b; }
         .live-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; animation: pulse 2s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
         .apexcharts-toolbar { display: none !important; }
@@ -23,34 +28,60 @@
             <div class="w-8 h-8 bg-blue-600 rounded flex items-center justify-center font-bold shadow-lg">Q</div>
             <h1 class="text-sm font-black uppercase tracking-widest">QBS Command Center</h1>
         </div>
-        <div id="status-badge" class="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-xl text-[9px] font-black text-slate-400">
-            <span id="status-dot" class="live-dot bg-green-500"></span> <span id="status-text">DATABASE LIVE (24H)</span>
+        <div class="flex items-center gap-4">
+            <div class="flex bg-slate-800 p-1 rounded-lg">
+                <button onclick="changeTimeRange(1)" id="btn-1" class="time-btn active text-white">1 T.</button>
+                <button onclick="changeTimeRange(5)" id="btn-5" class="time-btn text-slate-400">5 T.</button>
+                <button onclick="changeTimeRange(30)" id="btn-30" class="time-btn text-slate-400">1 M.</button>
+            </div>
+            <div id="status-badge" class="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-xl text-[9px] font-black text-slate-400">
+                <span class="live-dot bg-slate-500"></span> CONNECTING...
+            </div>
         </div>
     </nav>
 
     <main class="max-w-[1800px] mx-auto p-6 space-y-6">
+        
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div class="dashboard-card"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Temperatur</p><div class="flex items-baseline gap-1"><span id="val-temp" class="text-3xl font-black text-orange-500">--.-</span><span class="text-sm font-bold opacity-40">°C</span></div></div>
-            <div class="dashboard-card"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Luftfeuchtigkeit</p><div class="flex items-baseline gap-1"><span id="val-hum" class="text-3xl font-black text-blue-500">--</span><span class="text-sm font-bold opacity-40">%</span></div></div>
-            <div class="dashboard-card"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">TVOC</p><div class="flex items-baseline gap-1"><span id="val-tvoc" class="text-3xl font-black text-purple-500">----</span><span class="text-sm font-bold opacity-40">ppb</span></div></div>
-            <div class="dashboard-card"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">CO2 Wert</p><div class="flex items-baseline gap-1"><span id="val-co2" class="text-3xl font-black text-emerald-600">----</span><span class="text-sm font-bold opacity-40">ppm</span></div></div>
+            <div class="dashboard-card">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Temperatur</p>
+                <div class="flex items-baseline gap-1"><span id="val-temp" class="text-3xl font-black text-orange-500">--.-</span><span class="text-sm font-bold opacity-40">°C</span></div>
+            </div>
+            <div class="dashboard-card">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Luftfeuchtigkeit</p>
+                <div class="flex items-baseline gap-1"><span id="val-hum" class="text-3xl font-black text-blue-500">--</span><span class="text-sm font-bold opacity-40">%</span></div>
+            </div>
+            <div class="dashboard-card">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">TVOC</p>
+                <div class="flex items-baseline gap-1"><span id="val-tvoc" class="text-3xl font-black text-purple-500">----</span><span class="text-sm font-bold opacity-40">ppb</span></div>
+            </div>
+            <div class="dashboard-card">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">CO2 Wert</p>
+                <div class="flex items-baseline gap-1"><span id="val-co2" class="text-3xl font-black text-emerald-600">----</span><span class="text-sm font-bold opacity-40">ppm</span></div>
+            </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="dashboard-card flex flex-col items-center justify-center text-center">
-                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">AQI Index</h3>
+                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">AQI Index (1-5)</h3>
                 <div id="aqi-gauge" class="w-full"></div>
                 <p id="aqi-status" class="text-sm font-black uppercase italic text-slate-500">Lade...</p>
             </div>
             <div class="dashboard-card lg:col-span-2">
-                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Temperatur Verlauf (24h)</h3>
-                <div id="chart-temp" class="h-[350px]"></div>
+                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Temperatur Verlauf (°C)</h3>
+                <div id="chart-temp" class="h-[300px]"></div>
             </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="dashboard-card"><h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Luftfeuchtigkeit Verlauf (%)</h3><div id="chart-hum" class="h-[300px]"></div></div>
-            <div class="dashboard-card"><h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">TVOC Verlauf (ppb)</h3><div id="chart-tvoc" class="h-[300px]"></div></div>
+            <div class="dashboard-card">
+                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Luftfeuchtigkeit Verlauf (%)</h3>
+                <div id="chart-hum" class="h-[300px]"></div>
+            </div>
+            <div class="dashboard-card">
+                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">TVOC Verlauf (ppb)</h3>
+                <div id="chart-tvoc" class="h-[300px]"></div>
+            </div>
         </div>
     </main>
 
@@ -60,98 +91,121 @@
             supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyZGJyZXpic3R0bGt6ZWF1ZGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0Mzc1OTAsImV4cCI6MjA4NzAxMzU5MH0.YzkCMSTOggB0fH0Wf6jLgw5Qb4nJM5IjfUQKbIsb-Bc',
             dbTable: 'wetterdaten',
             dbMacColumn: 'device_id',
-            pollInterval: 10000 
+            mqttBroker: 'wss://g306b096.ala.eu-central-1.emqxsl.com:8084/mqtt',
+            mqttUser: 'web_user',
+            mqttPass: 'web_password123'
         };
 
         const sbClient = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
         const urlParams = new URLSearchParams(window.location.search);
-        let rawId = urlParams.get('id') || "30:ae:a4:07:0d:64"; 
-        const dbId = rawId.includes("esp32") ? rawId : `esp32-${rawId}/sensor`;
-
+        const deviceId = urlParams.get('id');
+        
         let chartT, chartH, chartV, aqiGauge;
-        const currentDays = 1; // Fixer Zeitraum: 24 Stunden
+        let currentDays = 1;
 
-        const baseOptions = (color, unit) => ({
-            chart: { 
-                type: 'area', height: '100%', toolbar: { show: false }, 
-                animations: { enabled: false },
-                fontFamily: 'Plus Jakarta Sans'
-            },
+        const baseOptions = (color, min, max, unit) => ({
+            chart: { type: 'area', height: 300, toolbar: { show: false }, animations: { enabled: true, easing: 'linear', dynamicAnimation: { speed: 800 } }, zoom: { enabled: false } },
             series: [{ name: unit, data: [] }],
             colors: [color],
-            stroke: { curve: 'smooth', width: 2 },
+            stroke: { curve: 'smooth', width: 3 },
             fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05 } },
-            xaxis: { 
-                type: 'datetime', 
-                labels: { datetimeUTC: false, style: { colors: '#94a3b8', fontSize: '10px' } },
-                axisBorder: { show: false }, axisTicks: { show: false }
-            },
-            yaxis: { tickAmount: 4, labels: { style: { colors: '#94a3b8', fontWeight: 600 } } },
-            grid: { borderColor: '#f1f5f9', strokeDashArray: 4 }
+            xaxis: { type: 'datetime', labels: { datetimeUTC: false, format: 'HH:mm', style: { colors: '#94a3b8', fontSize: '9px' } } },
+            yaxis: { min: min, max: max, tickAmount: 4, labels: { formatter: (v) => v.toFixed(unit === 'ppb' ? 0 : 1) + unit, style: { colors: '#94a3b8', fontWeight: 700 } } },
+            grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
+            dataLabels: { enabled: false }
         });
 
         function initCharts() {
-            chartT = new ApexCharts(document.querySelector("#chart-temp"), baseOptions('#f97316', '°C'));
-            chartH = new ApexCharts(document.querySelector("#chart-hum"), baseOptions('#3b82f6', '%'));
-            chartV = new ApexCharts(document.querySelector("#chart-tvoc"), baseOptions('#a855f7', 'ppb'));
+            chartT = new ApexCharts(document.querySelector("#chart-temp"), baseOptions('#f97316', 0, 40, '°C'));
+            chartH = new ApexCharts(document.querySelector("#chart-hum"), baseOptions('#3b82f6', 0, 100, '%'));
+            chartV = new ApexCharts(document.querySelector("#chart-tvoc"), baseOptions('#a855f7', 0, 1000, 'ppb'));
+
             [chartT, chartH, chartV].forEach(c => c.render());
 
             aqiGauge = new ApexCharts(document.querySelector("#aqi-gauge"), {
                 chart: { type: 'radialBar', height: 250 },
                 series: [0],
-                plotOptions: { radialBar: { startAngle: -90, endAngle: 90, hollow: { size: '65%' }, dataLabels: { value: { fontSize: '30px', fontWeight: '900', offsetY: 5 } } } },
-                fill: { colors: ['#10b981'] }
+                plotOptions: {
+                    radialBar: {
+                        startAngle: -90, endAngle: 90,
+                        hollow: { size: '65%' },
+                        dataLabels: { 
+                            name: { show: false },
+                            value: { fontSize: '32px', fontWeight: '900', offsetY: 5, formatter: (v) => v } 
+                        }
+                    }
+                },
+                fill: { type: 'gradient', gradient: { colorStops: [
+                    { offset: 0, color: "#10b981" },
+                    { offset: 50, color: "#f59e0b" },
+                    { offset: 100, color: "#ef4444" }
+                ]}}
             });
             aqiGauge.render();
         }
 
-        async function fetchHistory() {
-            const now = new Date();
-            const cutoff = new Date(now.getTime() - currentDays * 24 * 60 * 60 * 1000);
+        function updateUI(metric, val) {
+            if (val === undefined || val === null) return;
+            const el = document.getElementById(`val-${metric}`);
+            if (el) el.innerText = (metric === 'temp') ? parseFloat(val).toFixed(1) : Math.round(val);
             
-            const { data, error } = await sbClient.from(CONFIG.dbTable)
-                .select('*')
-                .eq(CONFIG.dbMacColumn, dbId)
-                .gte('created_at', cutoff.toISOString())
-                .order('created_at', { ascending: true });
-
-            if (error || !data) return;
-
-            // WICHTIG: Erzwungene X-Achse von "cutoff" bis "now"
-            // Das verhindert das Zusammenschieben
-            const xaxisConfig = {
-                min: cutoff.getTime(),
-                max: now.getTime(),
-                labels: { format: 'HH:mm' }
-            };
-
-            const update = (chart, points) => {
-                chart.updateOptions({
-                    series: [{ data: points }],
-                    xaxis: xaxisConfig
-                }, false, false);
-            };
-
-            update(chartT, data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.temperature })));
-            update(chartH, data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.humidity })));
-            update(chartV, data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.tvoc })));
-
-            if(data.length > 0) {
-                const last = data[data.length-1];
-                document.getElementById('val-temp').innerText = parseFloat(last.temperature).toFixed(1);
-                document.getElementById('val-hum').innerText = Math.round(last.humidity);
-                document.getElementById('val-tvoc').innerText = Math.round(last.tvoc);
-                document.getElementById('val-co2').innerText = Math.round(last.co2);
+            if (metric === 'co2') {
+                const status = document.getElementById('aqi-status');
+                let aqiIndex = 1;
+                if (val < 600) { aqiIndex = 1; status.innerText = "Exzellent"; status.style.color = "#059669"; }
+                else if (val < 1000) { aqiIndex = 2; status.innerText = "Gut"; status.style.color = "#10b981"; }
+                else if (val < 1500) { aqiIndex = 3; status.innerText = "Mäßig"; status.style.color = "#d97706"; }
+                else if (val < 2000) { aqiIndex = 4; status.innerText = "Ungesund"; status.style.color = "#ea580c"; }
+                else { aqiIndex = 5; status.innerText = "Kritisch"; status.style.color = "#dc2626"; }
                 
-                const aqiIdx = last.co2 < 1000 ? 100 : 40;
-                aqiGauge.updateSeries([aqiIdx]);
-                document.getElementById('aqi-status').innerText = last.co2 < 1000 ? "GUT" : "LÜFTEN";
+                // Gauge zeigt Index 1-5 (Mapping auf 0-100 für die Anzeige-Serie, falls nötig, aber wir zeigen hier den Index direkt)
+                // Um 1-5 optisch auf der Gauge zu verteilen:
+                aqiGauge.updateSeries([(aqiIndex / 5) * 100]);
+                // Wir überschreiben das Label manuell im Formatter oben (v) -> v wird hier zu 20, 40, 60... wir wollen 1,2,3...
+                aqiGauge.updateOptions({ plotOptions: { radialBar: { dataLabels: { value: { formatter: () => aqiIndex }}}}});
             }
         }
 
+        async function fetchHistory() {
+            if (!deviceId) return;
+            const cutoff = new Date();
+            cutoff.setDate(cutoff.getDate() - currentDays);
+            const { data } = await sbClient.from(CONFIG.dbTable).select('*').eq(CONFIG.dbMacColumn, deviceId).gte('created_at', cutoff.toISOString()).order('created_at', { ascending: true });
+            if (data && data.length > 0) {
+                chartT.updateSeries([{ data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.temperature })) }]);
+                chartH.updateSeries([{ data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.humidity })) }]);
+                chartV.updateSeries([{ data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.tvoc })) }]);
+                const last = data[data.length-1];
+                updateUI('temp', last.temperature); updateUI('hum', last.humidity); updateUI('tvoc', last.tvoc); updateUI('co2', last.co2);
+            }
+        }
+
+        function initMqtt() {
+            const client = mqtt.connect(CONFIG.mqttBroker, { username: CONFIG.mqttUser, password: CONFIG.mqttPass });
+            client.on('connect', () => {
+                document.getElementById('status-badge').innerHTML = '<span class="live-dot bg-green-500"></span> NETWORK LIVE';
+                client.subscribe(`esp32-${deviceId}/sensor`);
+            });
+            client.on('message', (t, msg) => {
+                const data = JSON.parse(msg.toString());
+                const ts = Date.now();
+                if (data.temperature || data.temp) chartT.appendData([{ data: [{ x: ts, y: data.temperature || data.temp }] }]);
+                if (data.humidity || data.hum) chartH.appendData([{ data: [{ x: ts, y: data.humidity || data.hum }] }]);
+                if (data.tvoc) chartV.appendData([{ data: [{ x: ts, y: data.tvoc }] }]);
+                updateUI('temp', data.temperature || data.temp); updateUI('hum', data.humidity || data.hum);
+                updateUI('tvoc', data.tvoc); updateUI('co2', data.co2);
+            });
+        }
+
+        async function changeTimeRange(d) {
+            currentDays = d;
+            document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active', 'text-white'));
+            document.getElementById(`btn-${d}`).classList.add('active', 'text-white');
+            await fetchHistory();
+        }
+
         initCharts();
-        fetchHistory();
-        setInterval(fetchHistory, CONFIG.pollInterval);
+        if (deviceId) fetchHistory().then(initMqtt);
     </script>
 </body>
 </html>
