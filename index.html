@@ -41,22 +41,10 @@
     <main class="max-w-[1800px] mx-auto p-6 space-y-6">
         
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div class="dashboard-card">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Temperatur</p>
-                <div class="flex items-baseline gap-1"><span id="val-temp" class="text-3xl font-black text-orange-500">--.-</span><span class="text-sm font-bold opacity-40">°C</span></div>
-            </div>
-            <div class="dashboard-card">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Luftfeuchtigkeit</p>
-                <div class="flex items-baseline gap-1"><span id="val-hum" class="text-3xl font-black text-blue-500">--</span><span class="text-sm font-bold opacity-40">%</span></div>
-            </div>
-            <div class="dashboard-card">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">TVOC</p>
-                <div class="flex items-baseline gap-1"><span id="val-tvoc" class="text-3xl font-black text-purple-500">----</span><span class="text-sm font-bold opacity-40">ppb</span></div>
-            </div>
-            <div class="dashboard-card">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">CO2 Wert</p>
-                <div class="flex items-baseline gap-1"><span id="val-co2" class="text-3xl font-black text-emerald-600">----</span><span class="text-sm font-bold opacity-40">ppm</span></div>
-            </div>
+            <div class="dashboard-card"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Temperatur</p><div class="flex items-baseline gap-1"><span id="val-temp" class="text-3xl font-black text-orange-500">--.-</span><span class="text-sm font-bold opacity-40">°C</span></div></div>
+            <div class="dashboard-card"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Luftfeuchtigkeit</p><div class="flex items-baseline gap-1"><span id="val-hum" class="text-3xl font-black text-blue-500">--</span><span class="text-sm font-bold opacity-40">%</span></div></div>
+            <div class="dashboard-card"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">TVOC</p><div class="flex items-baseline gap-1"><span id="val-tvoc" class="text-3xl font-black text-purple-500">----</span><span class="text-sm font-bold opacity-40">ppb</span></div></div>
+            <div class="dashboard-card"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">CO2 Wert</p><div class="flex items-baseline gap-1"><span id="val-co2" class="text-3xl font-black text-emerald-600">----</span><span class="text-sm font-bold opacity-40">ppm</span></div></div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -96,8 +84,6 @@
 
         const sbClient = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
         const urlParams = new URLSearchParams(window.location.search);
-        
-        // FIX: Wir unterstützen sowohl die ID "123456" als auch den vollen String "esp32-123456/sensor"
         let rawId = urlParams.get('id') || "";
         const dbId = rawId.includes("esp32") ? rawId : `esp32-${rawId}/sensor`;
         const mqttId = rawId.includes("/") ? rawId.split('/')[0] : `esp32-${rawId}`;
@@ -106,15 +92,16 @@
         let currentDays = 1;
 
         const baseOptions = (color, min, max, unit) => ({
-            chart: { type: 'area', height: 300, toolbar: { show: false }, animations: { enabled: true, easing: 'linear', dynamicAnimation: { speed: 800 } }, zoom: { enabled: false } },
+            chart: { type: 'area', height: 300, toolbar: { show: false }, animations: { enabled: true, easing: 'linear' }, zoom: { enabled: false } },
             series: [{ name: unit, data: [] }],
             colors: [color],
-            stroke: { curve: 'smooth', width: 3 },
+            stroke: { curve: 'smooth', width: 2 },
+            markers: { size: 0 }, // VERSTECKT DIE PUNKTE
+            dataLabels: { enabled: false }, // DEAKTIVIERT DIE ZAHLEN AUF DEM GRAPHEN
             fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05 } },
-            xaxis: { type: 'datetime', labels: { datetimeUTC: false, format: 'HH:mm', style: { colors: '#94a3b8', fontSize: '9px' } } },
+            xaxis: { type: 'datetime', labels: { datetimeUTC: false, format: 'dd.MM HH:mm', style: { colors: '#94a3b8', fontSize: '9px' } } },
             yaxis: { min: min, max: max, tickAmount: 4, labels: { formatter: (v) => v.toFixed(unit === 'ppb' ? 0 : 1) + unit, style: { colors: '#94a3b8', fontWeight: 700 } } },
-            grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
-            dataLabels: { enabled: false }
+            grid: { borderColor: '#f1f5f9', strokeDashArray: 4 }
         });
 
         function initCharts() {
@@ -130,32 +117,12 @@
                     radialBar: {
                         startAngle: -90, endAngle: 90,
                         hollow: { size: '65%' },
-                        dataLabels: { 
-                            name: { show: false },
-                            value: { fontSize: '32px', fontWeight: '900', offsetY: 5, formatter: (v) => Math.ceil((v/100)*5) } 
-                        }
+                        dataLabels: { name: { show: false }, value: { fontSize: '32px', fontWeight: '900', offsetY: 5, formatter: (v) => Math.ceil((v/100)*5) } }
                     }
                 },
                 fill: { type: 'gradient', gradient: { colorStops: [{ offset: 0, color: "#10b981" }, { offset: 50, color: "#f59e0b" }, { offset: 100, color: "#ef4444" }]}}
             });
             aqiGauge.render();
-        }
-
-        function updateUI(metric, val) {
-            if (val === undefined || val === null) return;
-            const el = document.getElementById(`val-${metric}`);
-            if (el) el.innerText = (metric === 'temp') ? parseFloat(val).toFixed(1) : Math.round(val);
-            
-            if (metric === 'co2') {
-                const status = document.getElementById('aqi-status');
-                let aqiIndex = 1;
-                if (val < 600) { aqiIndex = 1; status.innerText = "Exzellent"; status.style.color = "#059669"; }
-                else if (val < 1000) { aqiIndex = 2; status.innerText = "Gut"; status.style.color = "#10b981"; }
-                else if (val < 1500) { aqiIndex = 3; status.innerText = "Mäßig"; status.style.color = "#d97706"; }
-                else if (val < 2000) { aqiIndex = 4; status.innerText = "Schlecht"; status.style.color = "#ea580c"; }
-                else { aqiIndex = 5; status.innerText = "Kritisch"; status.style.color = "#dc2626"; }
-                aqiGauge.updateSeries([(aqiIndex / 5) * 100]);
-            }
         }
 
         async function fetchHistory() {
@@ -170,13 +137,32 @@
                 .order('created_at', { ascending: true });
 
             if (data && data.length > 0) {
-                chartT.updateSeries([{ data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.temperature })) }]);
-                chartH.updateSeries([{ data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.humidity })) }]);
-                chartV.updateSeries([{ data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.tvoc })) }]);
+                // DATEN-THINNING: Wir nehmen maximal 500 Punkte, um Überladung zu vermeiden
+                const step = Math.ceil(data.length / 500); 
+                const sampledData = data.filter((_, i) => i % step === 0);
+
+                chartT.updateSeries([{ data: sampledData.map(d => ({ x: new Date(d.created_at).getTime(), y: d.temperature })) }]);
+                chartH.updateSeries([{ data: sampledData.map(d => ({ x: new Date(d.created_at).getTime(), y: d.humidity })) }]);
+                chartV.updateSeries([{ data: sampledData.map(d => ({ x: new Date(d.created_at).getTime(), y: d.tvoc })) }]);
+
                 const last = data[data.length-1];
                 updateUI('temp', last.temperature); updateUI('hum', last.humidity); updateUI('tvoc', last.tvoc); updateUI('co2', last.co2);
-            } else {
-                console.log("Keine Daten für ID:", dbId, "im Zeitraum gefunden.");
+            }
+        }
+
+        function updateUI(metric, val) {
+            if (val === undefined || val === null) return;
+            const el = document.getElementById(`val-${metric}`);
+            if (el) el.innerText = (metric === 'temp') ? parseFloat(val).toFixed(1) : Math.round(val);
+            if (metric === 'co2') {
+                const status = document.getElementById('aqi-status');
+                let aqiIndex = 1;
+                if (val < 600) { aqiIndex = 1; status.innerText = "Exzellent"; status.style.color = "#059669"; }
+                else if (val < 1000) { aqiIndex = 2; status.innerText = "Gut"; status.style.color = "#10b981"; }
+                else if (val < 1500) { aqiIndex = 3; status.innerText = "Mäßig"; status.style.color = "#d97706"; }
+                else if (val < 2000) { aqiIndex = 4; status.innerText = "Schlecht"; status.style.color = "#ea580c"; }
+                else { aqiIndex = 5; status.innerText = "Kritisch"; status.style.color = "#dc2626"; }
+                aqiGauge.updateSeries([(aqiIndex / 5) * 100]);
             }
         }
 
