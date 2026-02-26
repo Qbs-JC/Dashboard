@@ -33,7 +33,7 @@
             <button onclick="changeTimeRange(30)" id="btn-30" class="time-btn text-slate-400">1 M.</button>
         </div>
         <div id="status-badge" class="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-xl text-[9px] font-black text-slate-400">
-            <span class="live-dot bg-slate-500"></span> CONNECTING...
+            <span class="live-dot bg-yellow-500"></span> CONNECTING...
         </div>
     </nav>
 
@@ -101,8 +101,7 @@
             xaxis: { 
                 type: 'datetime', 
                 labels: { datetimeUTC: false, style: { colors: '#94a3b8', fontSize: '10px', fontWeight: 600 } },
-                axisBorder: { show: false },
-                axisTicks: { show: false }
+                axisBorder: { show: false }, axisTicks: { show: false }
             },
             yaxis: { min: min, max: max, tickAmount: 4, labels: { formatter: (v) => v.toFixed(unit === 'ppb' ? 0 : 1) + unit, style: { colors: '#94a3b8', fontWeight: 700 } } },
             grid: { borderColor: '#f1f5f9', strokeDashArray: 3 }
@@ -133,35 +132,19 @@
             if (!dbId) return;
             const now = new Date();
             const cutoff = new Date(now.getTime() - currentDays * 24 * 60 * 60 * 1000);
-            
-            const { data } = await sbClient.from(CONFIG.dbTable)
-                .select('*')
-                .eq(CONFIG.dbMacColumn, dbId)
-                .gte('created_at', cutoff.toISOString())
-                .order('created_at', { ascending: true });
+            const { data } = await sbClient.from(CONFIG.dbTable).select('*').eq(CONFIG.dbMacColumn, dbId).gte('created_at', cutoff.toISOString()).order('created_at', { ascending: true });
 
-            if (data) {
-                // Mit nur 12 Werten über 5 Tage ist kein Sampling nötig, aber wir behalten die Logik für später bei
-                const xaxisConfig = {
-                    min: cutoff.getTime(),
-                    max: now.getTime(),
-                    labels: { format: currentDays === 1 ? 'HH:mm' : 'dd. MMM' },
-                    tickAmount: currentDays === 1 ? 6 : (currentDays === 5 ? 5 : 6)
-                };
-
+            if (data && data.length > 0) {
+                const xaxisConfig = { min: cutoff.getTime(), max: now.getTime(), labels: { format: currentDays === 1 ? 'HH:mm' : 'dd. MMM' }, tickAmount: 6 };
                 const update = (chart, dataPoints) => {
                     chart.updateSeries([{ data: dataPoints }], true);
                     chart.updateOptions({ xaxis: xaxisConfig });
                 };
-
                 update(chartT, data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.temperature })));
                 update(chartH, data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.humidity })));
                 update(chartV, data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.tvoc })));
-
-                if(data.length > 0) {
-                    const last = data[data.length-1];
-                    updateUI('temp', last.temperature); updateUI('hum', last.humidity); updateUI('tvoc', last.tvoc); updateUI('co2', last.co2);
-                }
+                const last = data[data.length-1];
+                updateUI('temp', last.temperature); updateUI('hum', last.humidity); updateUI('tvoc', last.tvoc); updateUI('co2', last.co2);
             }
         }
 
@@ -182,11 +165,27 @@
         }
 
         function initMqtt() {
-            const client = mqtt.connect(CONFIG.mqttBroker, { username: CONFIG.mqttUser, password: CONFIG.mqttPass });
+            // Einzigartige ClientID verhindert Verbindungsabbrüche durch doppelte Logins
+            const clientId = 'web_client_' + Math.random().toString(16).substr(2, 8);
+            const client = mqtt.connect(CONFIG.mqttBroker, {
+                username: CONFIG.mqttUser,
+                password: CONFIG.mqttPass,
+                clientId: clientId,
+                clean: true,
+                reconnectPeriod: 2000 // Automatischer Reconnect alle 2 Sek
+            });
+
             client.on('connect', () => {
+                console.log("MQTT Verbunden");
                 document.getElementById('status-badge').innerHTML = '<span class="live-dot bg-green-500"></span> NETWORK LIVE';
                 client.subscribe(`${mqttId}/sensor`);
             });
+
+            client.on('error', (err) => {
+                console.error("MQTT Verbindungsfehler:", err);
+                document.getElementById('status-badge').innerHTML = '<span class="live-dot bg-red-500"></span> ERROR';
+            });
+
             client.on('message', (t, msg) => {
                 const data = JSON.parse(msg.toString());
                 const ts = Date.now();
