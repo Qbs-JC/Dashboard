@@ -157,7 +157,7 @@
         });
 
         function initCharts() {
-            chartT = new ApexCharts(document.querySelector("#chart-temp"), baseOptions('#f97316', 0, 40, '°C'));
+            chartT = new ApexCharts(document.querySelector("#chart-temp"), baseOptions('#f97316', 10, 40, '°C'));
             chartH = new ApexCharts(document.querySelector("#chart-hum"), baseOptions('#3b82f6', 0, 100, '%'));
             chartV = new ApexCharts(document.querySelector("#chart-temp"), baseOptions('#a855f7', 0, 1000, 'ppb')); // Korrigierter Selektor für TVOC falls nötig, hier im Original #chart-temp
 
