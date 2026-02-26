@@ -14,8 +14,6 @@
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f1f5f9; }
         .dashboard-card { background: white; border-radius: 1.5rem; padding: 1.5rem; border: 1px solid #e2e8f0; shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1); }
-        .time-btn { transition: all 0.2s; border: 1px solid #cbd5e1; padding: 0.4rem 0.8rem; font-size: 0.7rem; font-weight: 700; border-radius: 0.5rem; }
-        .time-btn.active { background-color: #1e293b; color: white; border-color: #1e293b; }
         .live-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; animation: pulse 2s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
         .apexcharts-toolbar { display: none !important; }
@@ -29,11 +27,6 @@
             <h1 class="text-sm font-black uppercase tracking-widest">QBS Command Center</h1>
         </div>
         <div class="flex items-center gap-4">
-            <div class="flex bg-slate-800 p-1 rounded-lg">
-                <button onclick="changeTimeRange(1)" id="btn-1" class="time-btn active text-white">1 T.</button>
-                <button onclick="changeTimeRange(5)" id="btn-5" class="time-btn text-slate-400">5 T.</button>
-                <button onclick="changeTimeRange(30)" id="btn-30" class="time-btn text-slate-400">1 M.</button>
-            </div>
             <div id="status-badge" class="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-xl text-[9px] font-black text-slate-400">
                 <span class="live-dot bg-slate-500"></span> CONNECTING...
             </div>
@@ -158,10 +151,7 @@
                 else if (val < 2000) { aqiIndex = 4; status.innerText = "Ungesund"; status.style.color = "#ea580c"; }
                 else { aqiIndex = 5; status.innerText = "Kritisch"; status.style.color = "#dc2626"; }
                 
-                // Gauge zeigt Index 1-5 (Mapping auf 0-100 für die Anzeige-Serie, falls nötig, aber wir zeigen hier den Index direkt)
-                // Um 1-5 optisch auf der Gauge zu verteilen:
                 aqiGauge.updateSeries([(aqiIndex / 5) * 100]);
-                // Wir überschreiben das Label manuell im Formatter oben (v) -> v wird hier zu 20, 40, 60... wir wollen 1,2,3...
                 aqiGauge.updateOptions({ plotOptions: { radialBar: { dataLabels: { value: { formatter: () => aqiIndex }}}}});
             }
         }
@@ -195,13 +185,6 @@
                 updateUI('temp', data.temperature || data.temp); updateUI('hum', data.humidity || data.hum);
                 updateUI('tvoc', data.tvoc); updateUI('co2', data.co2);
             });
-        }
-
-        async function changeTimeRange(d) {
-            currentDays = d;
-            document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active', 'text-white'));
-            document.getElementById(`btn-${d}`).classList.add('active', 'text-white');
-            await fetchHistory();
         }
 
         initCharts();
