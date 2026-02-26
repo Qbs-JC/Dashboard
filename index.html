@@ -240,7 +240,11 @@
             const cutoff = new Date(now.getTime() - rangeMs);
             
             console.log(`Lade Daten für ${timeRange} (von ${cutoff.toLocaleString()} bis ${now.toLocaleString()})...`);
-            console.log(`Suche nach device_id: ${deviceId}`);
+            console.log(`Original device_id aus URL: ${deviceId}`);
+            
+            // Bereinige die device_id: Entferne alles nach einem Doppelpunkt (z.B. "123456:242" -> "123456")
+            let cleanDeviceId = deviceId.split(':')[0];
+            console.log(`Bereinigte device_id: ${cleanDeviceId}`);
             
             // Flexiblere Suche: Versuche verschiedene Formate
             let query = sbClient.from(CONFIG.dbTable)
@@ -249,12 +253,14 @@
                 .order('created_at', { ascending: true });
             
             // Suche mit LIKE - findet auch "esp32-123456/sensor" wenn deviceId "123456" ist
-            if (deviceId.includes('esp32-') || deviceId.includes('/')) {
+            if (cleanDeviceId.includes('esp32-') || cleanDeviceId.includes('/')) {
                 // Vollständige device_id wurde übergeben
-                query = query.eq(CONFIG.dbMacColumn, deviceId);
+                console.log(`Verwende exakte Suche: eq('${CONFIG.dbMacColumn}', '${cleanDeviceId}')`);
+                query = query.eq(CONFIG.dbMacColumn, cleanDeviceId);
             } else {
                 // Nur die Nummer wurde übergeben - suche mit LIKE
-                query = query.like(CONFIG.dbMacColumn, `%${deviceId}%`);
+                console.log(`Verwende LIKE Suche: like('${CONFIG.dbMacColumn}', '%${cleanDeviceId}%')`);
+                query = query.like(CONFIG.dbMacColumn, `%${cleanDeviceId}%`);
             }
             
             const { data, error } = await query;
@@ -319,11 +325,16 @@
         }
 
         function initMqtt() {
+            // Bereinige device_id für MQTT (entferne alles nach ':')
+            const cleanDeviceId = deviceId.split(':')[0];
+            
             mqttClient = mqtt.connect(CONFIG.mqttBroker, { username: CONFIG.mqttUser, password: CONFIG.mqttPass });
             mqttClient.on('connect', () => {
                 document.getElementById('status-badge').innerHTML = '<span class="live-dot bg-green-500"></span> NETWORK LIVE';
-                mqttClient.subscribe(`esp32-${deviceId}/sensor`);
-                console.log('MQTT verbunden und Topic abonniert');
+                const topic = `esp32-${cleanDeviceId}/sensor`;
+                mqttClient.subscribe(topic);
+                console.log(`MQTT verbunden und Topic abonniert: ${topic}`);
+            });
             });
             mqttClient.on('message', (t, msg) => {
                 const data = JSON.parse(msg.toString());
