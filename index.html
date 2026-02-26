@@ -278,15 +278,26 @@
 
             if (data && data.length > 0) {
                 const timeFormat = getTimeFormat(timeRange);
+                
+                // Verwende die tatsächlichen Zeitstempel aus den Daten für die X-Achse
+                const timestamps = data.map(d => new Date(d.created_at).getTime());
+                const firstTimestamp = Math.min(...timestamps);
+                const lastTimestamp = Math.max(...timestamps);
+                
+                // Füge etwas Padding hinzu (5% auf jeder Seite)
+                const padding = (lastTimestamp - firstTimestamp) * 0.05;
+                
                 const xaxisConfig = { 
-                    min: cutoff.getTime(), 
-                    max: now.getTime(),
+                    min: firstTimestamp - padding, 
+                    max: lastTimestamp + padding,
                     labels: { 
                         datetimeUTC: false, 
                         format: timeFormat,
                         style: { colors: '#94a3b8', fontSize: '9px' }
                     }
                 };
+
+                console.log(`X-Achse von ${new Date(firstTimestamp).toLocaleString()} bis ${new Date(lastTimestamp).toLocaleString()}`);
 
                 chartT.updateOptions({ xaxis: xaxisConfig, series: [{ data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.temperature })) }] }, false, true);
                 chartH.updateOptions({ xaxis: xaxisConfig, series: [{ data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.humidity })) }] }, false, true);
