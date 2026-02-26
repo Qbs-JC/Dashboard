@@ -3,62 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QBS Command Center | Database Only Edition</title>
-    <link rel="icon" href="data:,">
+    <title>QBS Command Center | Professional Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f1f5f9; }
-        .dashboard-card { background: white; border-radius: 1.5rem; padding: 1.5rem; border: 1px solid #e2e8f0; }
-        .time-btn { transition: all 0.2s; border: 1px solid #cbd5e1; padding: 0.4rem 0.8rem; font-size: 0.7rem; font-weight: 700; border-radius: 0.5rem; cursor: pointer; }
-        .time-btn.active { background-color: #1e293b; color: white; border-color: #1e293b; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
+        .dashboard-card { background: white; border-radius: 1rem; padding: 1.5rem; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .time-btn { transition: all 0.2s; padding: 0.5rem 1rem; font-size: 0.75rem; font-weight: 700; border-radius: 0.5rem; color: #64748b; }
+        .time-btn.active { background-color: #f1f5f9; color: #1e293b; border: 1px solid #e2e8f0; }
         .live-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
-        .apexcharts-toolbar { display: none !important; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
     </style>
 </head>
 <body class="text-slate-900 antialiased">
 
-    <nav class="bg-slate-900 text-white px-8 py-4 flex justify-between items-center sticky top-0 z-[100] shadow-2xl">
-        <div class="flex items-center gap-4">
-            <div class="w-8 h-8 bg-blue-600 rounded flex items-center justify-center font-bold shadow-lg">Q</div>
-            <h1 class="text-sm font-black uppercase tracking-widest">QBS Command Center</h1>
+    <nav class="bg-white border-b border-slate-200 px-8 py-4 flex justify-between items-center sticky top-0 z-[100]">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold">Q</div>
+            <h1 class="text-sm font-bold tracking-tight">QBS Command Center</h1>
         </div>
-        <div class="flex bg-slate-800 p-1 rounded-lg">
-            <button onclick="changeTimeRange(1)" id="btn-1" class="time-btn active text-white">1 T.</button>
-            <button onclick="changeTimeRange(5)" id="btn-5" class="time-btn text-slate-400">5 T.</button>
-            <button onclick="changeTimeRange(30)" id="btn-30" class="time-btn text-slate-400">1 M.</button>
+        <div class="flex bg-slate-50 p-1 rounded-lg border border-slate-200">
+            <button onclick="changeTimeRange(1)" id="btn-1" class="time-btn active">1 T.</button>
+            <button onclick="changeTimeRange(5)" id="btn-5" class="time-btn">5 T.</button>
+            <button onclick="changeTimeRange(30)" id="btn-30" class="time-btn">1 M.</button>
         </div>
-        <div id="status-badge" class="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-xl text-[9px] font-black text-slate-400">
-            <span id="status-dot" class="live-dot bg-green-500"></span> <span id="status-text">DATABASE LIVE</span>
+        <div class="text-[10px] font-bold text-slate-400 flex items-center bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200">
+            <span id="status-dot" class="live-dot bg-green-500"></span> <span id="status-text" class="uppercase tracking-widest">Live</span>
         </div>
     </nav>
 
-    <main class="max-w-[1800px] mx-auto p-6 space-y-6">
+    <main class="max-w-[1600px] mx-auto p-6 space-y-6">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div class="dashboard-card"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Temperatur</p><div class="flex items-baseline gap-1"><span id="val-temp" class="text-3xl font-black text-orange-500">--.-</span><span class="text-sm font-bold opacity-40">°C</span></div></div>
-            <div class="dashboard-card"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Luftfeuchtigkeit</p><div class="flex items-baseline gap-1"><span id="val-hum" class="text-3xl font-black text-blue-500">--</span><span class="text-sm font-bold opacity-40">%</span></div></div>
-            <div class="dashboard-card"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">TVOC</p><div class="flex items-baseline gap-1"><span id="val-tvoc" class="text-3xl font-black text-purple-500">----</span><span class="text-sm font-bold opacity-40">ppb</span></div></div>
-            <div class="dashboard-card"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">CO2 Wert</p><div class="flex items-baseline gap-1"><span id="val-co2" class="text-3xl font-black text-emerald-600">----</span><span class="text-sm font-bold opacity-40">ppm</span></div></div>
+            <div class="dashboard-card"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Temperatur</p><div class="flex items-baseline gap-1"><span id="val-temp" class="text-3xl font-black text-slate-800">--.-</span><span class="text-sm font-bold opacity-30">°C</span></div></div>
+            <div class="dashboard-card"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Feuchtigkeit</p><div class="flex items-baseline gap-1"><span id="val-hum" class="text-3xl font-black text-slate-800">--</span><span class="text-sm font-bold opacity-30">%</span></div></div>
+            <div class="dashboard-card"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">TVOC</p><div class="flex items-baseline gap-1"><span id="val-tvoc" class="text-3xl font-black text-slate-800">----</span><span class="text-sm font-bold opacity-30">ppb</span></div></div>
+            <div class="dashboard-card"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">CO2</p><div class="flex items-baseline gap-1"><span id="val-co2" class="text-3xl font-black text-slate-800">----</span><span class="text-sm font-bold opacity-30">ppm</span></div></div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="dashboard-card flex flex-col items-center justify-center text-center">
-                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">AQI Index (1-5)</h3>
-                <div id="aqi-gauge" class="w-full"></div>
-                <p id="aqi-status" class="text-sm font-black uppercase italic text-slate-500">Lade...</p>
-            </div>
-            <div class="dashboard-card lg:col-span-2">
-                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Temperatur Verlauf (°C)</h3>
-                <div id="chart-temp" class="h-[350px]"></div>
-            </div>
+        <div class="dashboard-card">
+            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Temperatur Verlauf</h3>
+            <div id="chart-temp" class="h-[350px]"></div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="dashboard-card"><h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Luftfeuchtigkeit Verlauf (%)</h3><div id="chart-hum" class="h-[300px]"></div></div>
-            <div class="dashboard-card"><h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">TVOC Verlauf (ppb)</h3><div id="chart-tvoc" class="h-[300px]"></div></div>
+            <div class="dashboard-card"><h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Luftfeuchtigkeit Verlauf</h3><div id="chart-hum" class="h-[250px]"></div></div>
+            <div class="dashboard-card"><h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">TVOC Verlauf</h3><div id="chart-tvoc" class="h-[250px]"></div></div>
         </div>
     </main>
 
@@ -68,77 +59,67 @@
             supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyZGJyZXpic3R0bGt6ZWF1ZGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0Mzc1OTAsImV4cCI6MjA4NzAxMzU5MH0.YzkCMSTOggB0fH0Wf6jLgw5Qb4nJM5IjfUQKbIsb-Bc',
             dbTable: 'wetterdaten',
             dbMacColumn: 'device_id',
-            pollInterval: 10000 // 10 Sekunden
+            pollInterval: 10000 
         };
 
         const sbClient = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
         const urlParams = new URLSearchParams(window.location.search);
-        let rawId = urlParams.get('id') || "";
+        let rawId = urlParams.get('id') || "30:ae:a4:07:0d:64"; // Default ID zum Testen
         const dbId = rawId.includes("esp32") ? rawId : `esp32-${rawId}/sensor`;
 
-        let chartT, chartH, chartV, aqiGauge;
+        let chartT, chartH, chartV;
         let currentDays = 1;
 
-        // Optimierte Chart-Konfiguration
-        const baseOptions = (color, minVal, maxVal, unit) => ({
+        // Die "Google Finance" Chart Optionen
+        const getBaseOptions = (color, unit) => ({
             chart: { 
                 type: 'area', 
                 height: '100%', 
                 toolbar: { show: false }, 
-                animations: { enabled: false }, // Aus für stabilere Live-Updates
-                zoom: { enabled: false } 
+                animations: { enabled: false }, // Animationen aus für sauberes Live-Update
+                fontFamily: 'Plus Jakarta Sans',
+                background: 'transparent'
             },
             series: [{ name: unit, data: [] }],
             colors: [color],
-            stroke: { curve: 'straight', width: 2 }, // Verhindert Zick-Zack/Bögen bei Lücken
-            markers: { size: 0 },
+            stroke: { curve: 'smooth', width: 2 }, // Leicht abgerundet wie in deinen Bildern
+            fill: { 
+                type: 'gradient', 
+                gradient: { shadeIntensity: 1, opacityFrom: 0.3, opacityTo: 0.05 } 
+            },
+            markers: { size: 0, hover: { size: 5 } },
             dataLabels: { enabled: false },
-            fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05 } },
             xaxis: { 
                 type: 'datetime', 
                 labels: { 
-                    datetimeUTC: false, 
-                    style: { colors: '#94a3b8', fontSize: '10px' } 
+                    datetimeUTC: false,
+                    style: { colors: '#94a3b8', fontSize: '10px', fontWeight: 600 },
                 },
                 axisBorder: { show: false },
+                axisTicks: { show: false },
                 tooltip: { enabled: false }
             },
             yaxis: { 
-                min: minVal, 
-                max: maxVal, 
-                tickAmount: 4, 
+                tickAmount: 4,
                 labels: { 
-                    formatter: (v) => v.toFixed(unit === 'ppb' ? 0 : 1) + unit, 
-                    style: { colors: '#94a3b8', fontWeight: 700 } 
+                    style: { colors: '#94a3b8', fontWeight: 600 },
+                    formatter: (v) => v.toFixed(0) + unit
                 } 
             },
-            grid: { borderColor: '#f1f5f9', strokeDashArray: 3 },
-            noData: { text: 'Warte auf Daten...', style: { color: '#94a3b8' } }
+            grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
+            tooltip: { x: { format: 'dd. MMM, HH:mm' } }
         });
 
         function initCharts() {
-            chartT = new ApexCharts(document.querySelector("#chart-temp"), baseOptions('#f97316', 0, 40, '°C'));
-            chartH = new ApexCharts(document.querySelector("#chart-hum"), baseOptions('#3b82f6', 0, 100, '%'));
-            chartV = new ApexCharts(document.querySelector("#chart-tvoc"), baseOptions('#a855f7', 0, 1000, 'ppb'));
+            chartT = new ApexCharts(document.querySelector("#chart-temp"), getBaseOptions('#f97316', '°C'));
+            chartH = new ApexCharts(document.querySelector("#chart-hum"), getBaseOptions('#3b82f6', '%'));
+            chartV = new ApexCharts(document.querySelector("#chart-tvoc"), getBaseOptions('#a855f7', 'ppb'));
             [chartT, chartH, chartV].forEach(c => c.render());
-
-            aqiGauge = new ApexCharts(document.querySelector("#aqi-gauge"), {
-                chart: { type: 'radialBar', height: 250 },
-                series: [0],
-                plotOptions: {
-                    radialBar: {
-                        startAngle: -90, endAngle: 90, hollow: { size: '65%' },
-                        dataLabels: { name: { show: false }, value: { fontSize: '32px', fontWeight: '900', offsetY: 5, formatter: (v) => Math.ceil((v/100)*5) } }
-                    }
-                },
-                fill: { type: 'gradient', gradient: { colorStops: [{ offset: 0, color: "#10b981" }, { offset: 50, color: "#f59e0b" }, { offset: 100, color: "#ef4444" }]}}
-            });
-            aqiGauge.render();
         }
 
         async function fetchHistory() {
-            if (!dbId) return;
             const now = new Date();
+            // EXAKTER STARTPUNKT: Verhindert das "Zusammenschieben"
             const cutoff = new Date(now.getTime() - currentDays * 24 * 60 * 60 * 1000);
             
             const { data, error } = await sbClient.from(CONFIG.dbTable)
@@ -147,81 +128,50 @@
                 .gte('created_at', cutoff.toISOString())
                 .order('created_at', { ascending: true });
 
-            if (error) { console.error("Supabase Error:", error); return; }
+            if (error) { console.error("Error:", error); return; }
+            if (!data) return;
 
-            if (data && data.length > 0) {
-                // Sampling: Verhindert Performance-Probleme bei vielen Daten
-                // Behält aber den allerletzten Punkt (Live-Daten) immer bei
-                let processedData = data;
-                const maxPoints = 350; 
-                if (data.length > maxPoints) {
-                    const step = Math.floor(data.length / maxPoints);
-                    processedData = data.filter((_, i) => i % step === 0 || i === data.length - 1);
-                }
+            // X-Achsen Bereich erzwingen (wie bei Google Finance)
+            const xaxisConfig = {
+                min: cutoff.getTime(),
+                max: now.getTime(),
+                labels: {
+                    format: currentDays === 1 ? 'HH:mm' : (currentDays <= 5 ? 'dd. MMM' : 'dd.MM.')
+                },
+                tickAmount: currentDays === 1 ? 6 : 5
+            };
 
-                // Fix für die Zeitachse: Setzt Min/Max hart auf den gewählten Zeitraum
-                const xMin = cutoff.getTime();
-                const xMax = now.getTime();
+            const update = (chart, points) => {
+                chart.updateOptions({
+                    series: [{ data: points }],
+                    xaxis: xaxisConfig
+                }, false, false); // Keine Animationen für sofortige Korrektur
+            };
 
-                const updateChart = (chart, dataPoints) => {
-                    chart.updateOptions({
-                        series: [{ data: dataPoints }],
-                        xaxis: { 
-                            min: xMin, 
-                            max: xMax,
-                            labels: { format: currentDays === 1 ? 'HH:mm' : 'dd.MM.' }
-                        }
-                    }, false, false);
-                };
+            update(chartT, data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.temperature })));
+            update(chartH, data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.humidity })));
+            update(chartV, data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.tvoc })));
 
-                updateChart(chartT, processedData.map(d => ({ x: new Date(d.created_at).getTime(), y: d.temperature })));
-                updateChart(chartH, processedData.map(d => ({ x: new Date(d.created_at).getTime(), y: d.humidity })));
-                updateChart(chartV, processedData.map(d => ({ x: new Date(d.created_at).getTime(), y: d.tvoc })));
-
-                // UI Kacheln aktualisieren
-                const last = data[data.length - 1];
-                updateUI('temp', last.temperature); 
-                updateUI('hum', last.humidity); 
-                updateUI('tvoc', last.tvoc); 
-                updateUI('co2', last.co2);
-                
-                document.getElementById('status-dot').style.backgroundColor = '#10b981';
-                document.getElementById('status-text').innerText = "DATABASE LIVE";
+            // Letzte Live-Werte in die Kacheln
+            if(data.length > 0) {
+                const last = data[data.length-1];
+                document.getElementById('val-temp').innerText = parseFloat(last.temperature).toFixed(1);
+                document.getElementById('val-hum').innerText = Math.round(last.humidity);
+                document.getElementById('val-tvoc').innerText = Math.round(last.tvoc);
+                document.getElementById('val-co2').innerText = Math.round(last.co2);
             }
         }
 
-        function updateUI(metric, val) {
-            if (val === undefined || val === null) return;
-            const el = document.getElementById(`val-${metric}`);
-            if (el) el.innerText = (metric === 'temp') ? parseFloat(val).toFixed(1) : Math.round(val);
-            if (metric === 'co2') {
-                const status = document.getElementById('aqi-status');
-                let aqiIndex = 1;
-                if (val < 600) { aqiIndex = 1; status.innerText = "Exzellent"; status.style.color = "#059669"; }
-                else if (val < 1000) { aqiIndex = 2; status.innerText = "Gut"; status.style.color = "#10b981"; }
-                else if (val < 1500) { aqiIndex = 3; status.innerText = "Mäßig"; status.style.color = "#d97706"; }
-                else if (val < 2000) { aqiIndex = 4; status.innerText = "Schlecht"; status.style.color = "#ea580c"; }
-                else { aqiIndex = 5; status.innerText = "Kritisch"; status.style.color = "#dc2626"; }
-                aqiGauge.updateSeries([(aqiIndex / 5) * 100]);
-            }
-        }
-
-        async function changeTimeRange(d) {
+        function changeTimeRange(d) {
             currentDays = d;
-            document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active', 'text-white'));
-            const activeBtn = document.getElementById(`btn-${d}`);
-            if(activeBtn) activeBtn.classList.add('active', 'text-white');
-            
-            // Sofortiges Feedback
-            await fetchHistory();
+            document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`btn-${d}`).classList.add('active');
+            fetchHistory();
         }
 
-        // Start
         initCharts();
-        if (rawId) {
-            fetchHistory();
-            setInterval(fetchHistory, CONFIG.pollInterval);
-        }
+        fetchHistory();
+        setInterval(fetchHistory, CONFIG.pollInterval);
     </script>
 </body>
 </html>
