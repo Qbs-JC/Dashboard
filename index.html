@@ -68,7 +68,7 @@
             supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyZGJyZXpic3R0bGt6ZWF1ZGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0Mzc1OTAsImV4cCI6MjA4NzAxMzU5MH0.YzkCMSTOggB0fH0Wf6jLgw5Qb4nJM5IjfUQKbIsb-Bc',
             dbTable: 'wetterdaten',
             dbMacColumn: 'device_id',
-            pollInterval: 10000 // Alle 10 Sekunden nach neuen Daten suchen
+            pollInterval: 10000 // 10 Sekunden
         };
 
         const sbClient = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
@@ -79,21 +79,41 @@
         let chartT, chartH, chartV, aqiGauge;
         let currentDays = 1;
 
-        const baseOptions = (color, min, max, unit) => ({
-            chart: { type: 'area', height: '100%', toolbar: { show: false }, animations: { enabled: true, easing: 'linear', dynamicAnimation: { speed: 800 } }, zoom: { enabled: false } },
+        // Optimierte Chart-Konfiguration
+        const baseOptions = (color, minVal, maxVal, unit) => ({
+            chart: { 
+                type: 'area', 
+                height: '100%', 
+                toolbar: { show: false }, 
+                animations: { enabled: false }, // Aus für stabilere Live-Updates
+                zoom: { enabled: false } 
+            },
             series: [{ name: unit, data: [] }],
             colors: [color],
-            stroke: { curve: 'smooth', width: 2.5 },
+            stroke: { curve: 'straight', width: 2 }, // Verhindert Zick-Zack/Bögen bei Lücken
             markers: { size: 0 },
             dataLabels: { enabled: false },
-            fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.02 } },
+            fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05 } },
             xaxis: { 
                 type: 'datetime', 
-                labels: { datetimeUTC: false, style: { colors: '#94a3b8', fontSize: '10px', fontWeight: 600 } },
-                axisBorder: { show: false }, axisTicks: { show: false }
+                labels: { 
+                    datetimeUTC: false, 
+                    style: { colors: '#94a3b8', fontSize: '10px' } 
+                },
+                axisBorder: { show: false },
+                tooltip: { enabled: false }
             },
-            yaxis: { min: min, max: max, tickAmount: 4, labels: { formatter: (v) => v.toFixed(unit === 'ppb' ? 0 : 1) + unit, style: { colors: '#94a3b8', fontWeight: 700 } } },
-            grid: { borderColor: '#f1f5f9', strokeDashArray: 3 }
+            yaxis: { 
+                min: minVal, 
+                max: maxVal, 
+                tickAmount: 4, 
+                labels: { 
+                    formatter: (v) => v.toFixed(unit === 'ppb' ? 0 : 1) + unit, 
+                    style: { colors: '#94a3b8', fontWeight: 700 } 
+                } 
+            },
+            grid: { borderColor: '#f1f5f9', strokeDashArray: 3 },
+            noData: { text: 'Warte auf Daten...', style: { color: '#94a3b8' } }
         });
 
         function initCharts() {
@@ -121,37 +141,52 @@
             const now = new Date();
             const cutoff = new Date(now.getTime() - currentDays * 24 * 60 * 60 * 1000);
             
-            const { data } = await sbClient.from(CONFIG.dbTable)
+            const { data, error } = await sbClient.from(CONFIG.dbTable)
                 .select('*')
                 .eq(CONFIG.dbMacColumn, dbId)
                 .gte('created_at', cutoff.toISOString())
                 .order('created_at', { ascending: true });
 
-            if (data) {
-                // Beliebig viele Werte: Sampling auf max 300 Punkte für flüssige Darstellung
-                const step = Math.ceil(data.length / 300);
-                const sampledData = (step > 1) ? data.filter((_, i) => i % step === 0) : data;
+            if (error) { console.error("Supabase Error:", error); return; }
 
-                const xaxisConfig = {
-                    min: cutoff.getTime(),
-                    max: now.getTime(),
-                    labels: { format: currentDays === 1 ? 'HH:mm' : 'dd. MMM' },
-                    tickAmount: 6
-                };
-
-                const update = (chart, dataPoints) => {
-                    chart.updateSeries([{ data: dataPoints }], true);
-                    chart.updateOptions({ xaxis: xaxisConfig });
-                };
-
-                update(chartT, sampledData.map(d => ({ x: new Date(d.created_at).getTime(), y: d.temperature })));
-                update(chartH, sampledData.map(d => ({ x: new Date(d.created_at).getTime(), y: d.humidity })));
-                update(chartV, sampledData.map(d => ({ x: new Date(d.created_at).getTime(), y: d.tvoc })));
-
-                if(data.length > 0) {
-                    const last = data[data.length-1];
-                    updateUI('temp', last.temperature); updateUI('hum', last.humidity); updateUI('tvoc', last.tvoc); updateUI('co2', last.co2);
+            if (data && data.length > 0) {
+                // Sampling: Verhindert Performance-Probleme bei vielen Daten
+                // Behält aber den allerletzten Punkt (Live-Daten) immer bei
+                let processedData = data;
+                const maxPoints = 350; 
+                if (data.length > maxPoints) {
+                    const step = Math.floor(data.length / maxPoints);
+                    processedData = data.filter((_, i) => i % step === 0 || i === data.length - 1);
                 }
+
+                // Fix für die Zeitachse: Setzt Min/Max hart auf den gewählten Zeitraum
+                const xMin = cutoff.getTime();
+                const xMax = now.getTime();
+
+                const updateChart = (chart, dataPoints) => {
+                    chart.updateOptions({
+                        series: [{ data: dataPoints }],
+                        xaxis: { 
+                            min: xMin, 
+                            max: xMax,
+                            labels: { format: currentDays === 1 ? 'HH:mm' : 'dd.MM.' }
+                        }
+                    }, false, false);
+                };
+
+                updateChart(chartT, processedData.map(d => ({ x: new Date(d.created_at).getTime(), y: d.temperature })));
+                updateChart(chartH, processedData.map(d => ({ x: new Date(d.created_at).getTime(), y: d.humidity })));
+                updateChart(chartV, processedData.map(d => ({ x: new Date(d.created_at).getTime(), y: d.tvoc })));
+
+                // UI Kacheln aktualisieren
+                const last = data[data.length - 1];
+                updateUI('temp', last.temperature); 
+                updateUI('hum', last.humidity); 
+                updateUI('tvoc', last.tvoc); 
+                updateUI('co2', last.co2);
+                
+                document.getElementById('status-dot').style.backgroundColor = '#10b981';
+                document.getElementById('status-text').innerText = "DATABASE LIVE";
             }
         }
 
@@ -176,14 +211,15 @@
             document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active', 'text-white'));
             const activeBtn = document.getElementById(`btn-${d}`);
             if(activeBtn) activeBtn.classList.add('active', 'text-white');
+            
+            // Sofortiges Feedback
             await fetchHistory();
         }
 
-        // Startvorgang
+        // Start
         initCharts();
         if (rawId) {
             fetchHistory();
-            // Automatische Aktualisierung alle X Sekunden [Polling]
             setInterval(fetchHistory, CONFIG.pollInterval);
         }
     </script>
