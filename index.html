@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enterprise IoT Analytics | Company Name</title>
+    <title>Enterprise IoT Analytics | Monitoring System</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
@@ -12,106 +12,100 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
-        .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border: 1px solid rgba(226, 232, 240, 0.8); }
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid #e2e8f0; }
         .live-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
     </style>
 </head>
-<body class="text-slate-900">
+<body class="text-slate-800">
 
-    <nav class="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">C</div>
+    <nav class="bg-slate-900 text-white px-8 py-4 flex justify-between items-center shadow-lg sticky top-0 z-50">
+        <div class="flex items-center gap-4">
+            <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center font-bold text-xl shadow-inner">Q</div>
             <div>
-                <h1 class="text-lg font-bold leading-tight">IoT Analytics Pro</h1>
-                <p class="text-xs text-slate-500 uppercase tracking-widest font-semibold">Enterprise Division</p>
+                <h1 class="text-lg font-bold tracking-tight">QBS Analytics Pro</h1>
+                <p class="text-[10px] text-blue-400 uppercase tracking-[0.2em] font-bold">Control & Monitoring</p>
             </div>
         </div>
-        <div id="status-badge" class="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-full text-sm font-medium text-slate-600">
-            <span class="w-2 h-2 bg-slate-400 rounded-full"></span>
-            Initialisierung...
+        <div id="status-badge" class="flex items-center gap-3 bg-slate-800 border border-slate-700 px-4 py-2 rounded-full text-xs font-semibold">
+            <span class="w-2.5 h-2.5 bg-slate-500 rounded-full"></span>
+            SYSTEM INITIALIZING
         </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto p-6 space-y-6">
+    <main class="max-w-7xl mx-auto p-8 space-y-8">
         
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div id="card-temp" class="glass-card rounded-2xl p-6 shadow-sm transition-all hover:shadow-md">
-                <p class="text-sm font-semibold text-slate-500 uppercase">Temperatur</p>
-                <div class="flex items-baseline gap-1 mt-2">
-                    <span id="temp" class="text-4xl font-bold tracking-tight">--.-</span>
-                    <span class="text-slate-400 font-medium">°C</span>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div id="card-temp" class="glass-card rounded-3xl p-6 shadow-sm border-t-4 border-t-orange-500">
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Temperatur</p>
+                <div class="flex items-baseline gap-2 mt-2">
+                    <span id="temp" class="text-5xl font-black tracking-tighter text-slate-900">--.-</span>
+                    <span class="text-xl text-slate-400 font-bold">°C</span>
                 </div>
-                <div class="mt-4 flex items-center gap-2 text-xs font-medium text-slate-400">
-                    <span id="temp-source" class="bg-slate-100 px-2 py-0.5 rounded">Warten...</span>
-                </div>
+                <div id="temp-source" class="mt-4 text-[10px] font-bold text-slate-300 uppercase italic">Standby</div>
             </div>
 
-            <div id="card-hum" class="glass-card rounded-2xl p-6 shadow-sm">
-                <p class="text-sm font-semibold text-slate-500 uppercase">Luftfeuchtigkeit</p>
-                <div class="flex items-baseline gap-1 mt-2">
-                    <span id="hum" class="text-4xl font-bold tracking-tight">--</span>
-                    <span class="text-slate-400 font-medium">%</span>
+            <div id="card-hum" class="glass-card rounded-3xl p-6 shadow-sm border-t-4 border-t-blue-500">
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Luftfeuchtigkeit</p>
+                <div class="flex items-baseline gap-2 mt-2">
+                    <span id="hum" class="text-5xl font-black tracking-tighter text-slate-900">--</span>
+                    <span class="text-xl text-slate-400 font-bold">%</span>
                 </div>
-                <div class="mt-4 flex items-center gap-2 text-xs font-medium text-slate-400">
-                    <span id="hum-source" class="bg-slate-100 px-2 py-0.5 rounded">Warten...</span>
-                </div>
+                <div id="hum-source" class="mt-4 text-[10px] font-bold text-slate-300 uppercase italic">Standby</div>
             </div>
 
-            <div id="card-co2" class="glass-card rounded-2xl p-6 shadow-sm">
-                <p class="text-sm font-semibold text-slate-500 uppercase">CO2 Gehalt</p>
-                <div class="flex items-baseline gap-1 mt-2">
-                    <span id="co2" class="text-4xl font-bold tracking-tight">----</span>
-                    <span class="text-slate-400 font-medium">ppm</span>
+            <div id="card-co2" class="glass-card rounded-3xl p-6 shadow-sm border-t-4 border-t-emerald-500">
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">CO2 Level</p>
+                <div class="flex items-baseline gap-2 mt-2">
+                    <span id="co2" class="text-5xl font-black tracking-tighter text-slate-900">----</span>
+                    <span class="text-xl text-slate-400 font-bold">ppm</span>
                 </div>
-                <div class="mt-4 flex items-center gap-2 text-xs font-medium text-slate-400">
-                    <span id="co2-source" class="bg-slate-100 px-2 py-0.5 rounded">Warten...</span>
-                </div>
+                <div id="co2-source" class="mt-4 text-[10px] font-bold text-slate-300 uppercase italic">Standby</div>
             </div>
 
-            <div id="card-tvoc" class="glass-card rounded-2xl p-6 shadow-sm">
-                <p class="text-sm font-semibold text-slate-500 uppercase">Luftqualität (TVOC)</p>
-                <div class="flex items-baseline gap-1 mt-2">
-                    <span id="tvoc" class="text-4xl font-bold tracking-tight">----</span>
-                    <span class="text-slate-400 font-medium">ppb</span>
+            <div id="card-tvoc" class="glass-card rounded-3xl p-6 shadow-sm border-t-4 border-t-purple-500">
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Luftqualität (TVOC)</p>
+                <div class="flex items-baseline gap-2 mt-2">
+                    <span id="tvoc" class="text-5xl font-black tracking-tighter text-slate-900">----</span>
+                    <span class="text-xl text-slate-400 font-bold">ppb</span>
                 </div>
-                <div class="mt-4 flex items-center gap-2 text-xs font-medium text-slate-400">
-                    <span id="tvoc-source" class="bg-slate-100 px-2 py-0.5 rounded">Warten...</span>
-                </div>
+                <div id="tvoc-source" class="mt-4 text-[10px] font-bold text-slate-300 uppercase italic">Standby</div>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="lg:col-span-2 glass-card rounded-2xl p-6 shadow-sm">
-                <div class="flex justify-between items-center mb-6">
-                    <h3 class="font-bold text-lg">Temperaturverlauf (Letzte 24h)</h3>
-                    <span class="text-xs text-slate-400 font-mono">Real-time Feed</span>
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <div class="lg:col-span-3 glass-card rounded-3xl p-8 shadow-md">
+                <div class="flex justify-between items-center mb-8 border-b border-slate-100 pb-4">
+                    <div>
+                        <h3 class="font-extrabold text-xl text-slate-900">Historische Analyse</h3>
+                        <p class="text-sm text-slate-400 font-medium">Temperaturverlauf der letzten 24 Stunden</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <span class="px-3 py-1 bg-blue-100 text-blue-600 rounded-lg text-[10px] font-bold uppercase">Real-Time Data Access</span>
+                    </div>
                 </div>
                 <div id="chart-main" class="w-full h-80"></div>
             </div>
 
-            <div class="glass-card rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+            <div class="glass-card rounded-3xl p-8 shadow-md flex flex-col justify-between">
                 <div>
-                    <h3 class="font-bold text-lg mb-4">Geräteinformationen</h3>
-                    <div class="space-y-4">
-                        <div class="flex justify-between border-b border-slate-100 pb-2">
-                            <span class="text-slate-500 text-sm">Geräte-ID</span>
-                            <span id="info-id" class="font-mono text-sm font-bold">---</span>
+                    <h3 class="font-extrabold text-lg mb-6 border-b border-slate-100 pb-2">Device Info</h3>
+                    <div class="space-y-6">
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">Serial ID</p>
+                            <p id="info-id" class="font-mono font-bold text-blue-600">---</p>
                         </div>
-                        <div class="flex justify-between border-b border-slate-100 pb-2">
-                            <span class="text-slate-500 text-sm">Letzte Aktivität</span>
-                            <span id="info-last" class="text-sm">Nie</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-slate-500 text-sm">Server-Region</span>
-                            <span class="text-sm font-medium">AWS / Frankfurt</span>
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">Last Synchronization</p>
+                            <p id="info-last" class="text-sm font-semibold">Searching...</p>
                         </div>
                     </div>
                 </div>
-                <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                    <p class="text-blue-700 text-xs leading-relaxed">
-                        Diese Daten werden Ende-zu-Ende verschlüsselt übertragen und in der Supabase Enterprise Cloud gespeichert.
+                <div class="mt-8 bg-slate-900 p-5 rounded-2xl">
+                    <p class="text-white text-[11px] font-medium leading-relaxed">
+                        Authorized Enterprise Connection via AWS Frankfurt Cluster. 
+                        Data integrity verified by Supabase.
                     </p>
                 </div>
             </div>
@@ -136,42 +130,37 @@
         const sbClient = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
         let mainChart;
 
-        // 1. Chart Initialisierung
         function initChart() {
             const options = {
-                chart: { type: 'area', height: 320, toolbar: { show: false }, zoom: { enabled: false }, animations: { enabled: true, easing: 'linear', dynamicAnimation: { speed: 1000 } } },
-                colors: ['#2563eb'],
+                chart: { type: 'area', height: 350, toolbar: { show: false }, zoom: { enabled: false }, animations: { enabled: true, easing: 'easeinout', speed: 800 } },
+                colors: ['#3b82f6'],
                 dataLabels: { enabled: false },
-                stroke: { curve: 'smooth', width: 3 },
-                fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05 } },
+                stroke: { curve: 'smooth', width: 4 },
+                fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.6, opacityTo: 0.1 } },
                 series: [{ name: 'Temperatur', data: [] }],
-                xaxis: { type: 'datetime', labels: { style: { colors: '#94a3b8' } } },
-                yaxis: { labels: { style: { colors: '#94a3b8' } } },
-                grid: { borderColor: '#f1f5f9' }
+                xaxis: { type: 'datetime', labels: { style: { colors: '#94a3b8', fontWeight: 600 } } },
+                yaxis: { labels: { style: { colors: '#94a3b8', fontWeight: 600 } } },
+                grid: { borderColor: '#f1f5f9', strokeDashArray: 4 }
             };
             mainChart = new ApexCharts(document.querySelector("#chart-main"), options);
             mainChart.render();
         }
 
-        // 2. UI Updates mit Schwellenwerten
         function updateUI(data, source) {
-            const elements = { temp: 'temp', hum: 'hum', co2: 'co2', tvoc: 'tvoc' };
-            Object.keys(elements).forEach(key => {
+            const fields = { temp: 'temp', hum: 'hum', co2: 'co2', tvoc: 'tvoc' };
+            Object.keys(fields).forEach(key => {
                 if (data[key] !== undefined) {
-                    const el = document.getElementById(elements[key]);
-                    el.innerText = data[key];
-                    document.getElementById(elements[key] + '-source').innerText = source;
+                    document.getElementById(fields[key]).innerText = data[key];
+                    document.getElementById(fields[key] + '-source').innerText = source;
                     
-                    // CO2 Alarm-Logik
                     if (key === 'co2' && data[key] > 1000) {
-                        document.getElementById('card-co2').classList.add('bg-orange-50', 'border-orange-200');
+                        document.getElementById('card-co2').classList.replace('border-t-emerald-500', 'border-t-red-500');
                     }
                 }
             });
             document.getElementById('info-last').innerText = new Date().toLocaleTimeString();
         }
 
-        // 3. Datenbank-Historie laden & Chart füllen
         async function loadHistory() {
             if (!deviceId) return;
             const { data, error } = await sbClient
@@ -179,46 +168,42 @@
                 .select('*')
                 .eq(CONFIG.dbMacColumn, deviceId)
                 .order('created_at', { ascending: false })
-                .limit(20);
+                .limit(30);
 
             if (!error && data.length > 0) {
-                const historyData = data.reverse();
-                const chartPoints = historyData.map(d => ({ x: new Date(d.created_at).getTime(), y: d.temp }));
+                const history = data.reverse();
+                const chartPoints = history.map(d => ({ x: new Date(d.created_at).getTime(), y: d.temp }));
                 mainChart.updateSeries([{ data: chartPoints }]);
-                updateUI(data[data.length-1], "Cloud History");
+                updateUI(data[data.length-1], "Cloud Archive");
             }
         }
 
-        // 4. MQTT Live-Anbindung
         function initMqtt() {
             if (!deviceId) return;
             const client = mqtt.connect(CONFIG.mqttBroker, { username: CONFIG.mqttUser, password: CONFIG.mqttPass });
 
             client.on('connect', () => {
                 const badge = document.getElementById('status-badge');
-                badge.innerHTML = '<span class="w-2 h-2 bg-green-500 rounded-full live-pulse"></span> SYSTEM LIVE';
-                badge.classList.replace('text-slate-600', 'text-green-700');
+                badge.innerHTML = '<span class="w-2.5 h-2.5 bg-green-500 rounded-full live-pulse"></span> SYSTEM ONLINE';
+                badge.classList.replace('bg-slate-800', 'bg-slate-900');
+                badge.classList.add('border-green-500/30', 'text-green-400');
                 client.subscribe(`esp32-${deviceId}/sensor`);
             });
 
             client.on('message', (t, msg) => {
                 const data = JSON.parse(msg.toString());
-                updateUI(data, "Real-time Live");
-                
-                // Chart live erweitern
+                updateUI(data, "Live Feed");
                 if (data.temp) {
-                    const newData = { x: new Date().getTime(), y: data.temp };
-                    mainChart.appendData([{ data: [newData] }]);
+                    mainChart.appendData([{ data: [{ x: new Date().getTime(), y: data.temp }] }]);
                 }
             });
         }
 
-        // Start
         initChart();
         if (deviceId) {
             loadHistory().then(initMqtt);
         } else {
-            document.getElementById('status-badge').innerHTML = '🔴 ID FEHLT';
+            document.getElementById('status-badge').innerHTML = '🔴 NO DEVICE ID DETECTED';
         }
     </script>
 </body>
