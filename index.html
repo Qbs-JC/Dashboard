@@ -94,7 +94,6 @@
         const deviceId = urlParams.get('id');
         
         let chartT, chartH, chartV, aqiGauge;
-        let currentDays = 1;
 
         const baseOptions = (color, min, max, unit) => ({
             chart: { type: 'area', height: 300, toolbar: { show: false }, animations: { enabled: true, easing: 'linear', dynamicAnimation: { speed: 800 } }, zoom: { enabled: false } },
@@ -158,15 +157,31 @@
 
         async function fetchHistory() {
             if (!deviceId) return;
-            const cutoff = new Date();
-            cutoff.setDate(cutoff.getDate() - currentDays);
-            const { data } = await sbClient.from(CONFIG.dbTable).select('*').eq(CONFIG.dbMacColumn, deviceId).gte('created_at', cutoff.toISOString()).order('created_at', { ascending: true });
+            const now = new Date();
+            const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000); // Exakt 24 Stunden zurück
+            
+            // Daten werden direkt aus den Spalten der Supabase Tabelle entnommen
+            const { data, error } = await sbClient.from(CONFIG.dbTable)
+                .select('created_at, temperature, humidity, tvoc, co2')
+                .eq(CONFIG.dbMacColumn, deviceId)
+                .gte('created_at', cutoff.toISOString())
+                .order('created_at', { ascending: true });
+
+            if (error) { console.error("DB Abfragefehler:", error); return; }
+
             if (data && data.length > 0) {
-                chartT.updateSeries([{ data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.temperature })) }]);
-                chartH.updateSeries([{ data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.humidity })) }]);
-                chartV.updateSeries([{ data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.tvoc })) }]);
-                const last = data[data.length-1];
-                updateUI('temp', last.temperature); updateUI('hum', last.humidity); updateUI('tvoc', last.tvoc); updateUI('co2', last.co2);
+                // X-Achse wird fest auf das 24h Fenster von "cutoff" bis "jetzt" eingestellt
+                const xaxisConfig = { min: cutoff.getTime(), max: now.getTime() };
+
+                chartT.updateOptions({ xaxis: xaxisConfig, series: [{ data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.temperature })) }] }, false, false);
+                chartH.updateOptions({ xaxis: xaxisConfig, series: [{ data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.humidity })) }] }, false, false);
+                chartV.updateOptions({ xaxis: xaxisConfig, series: [{ data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.tvoc })) }] }, false, false);
+
+                const last = data[data.length - 1];
+                updateUI('temp', last.temperature); 
+                updateUI('hum', last.humidity); 
+                updateUI('tvoc', last.tvoc); 
+                updateUI('co2', last.co2);
             }
         }
 
@@ -179,14 +194,20 @@
             client.on('message', (t, msg) => {
                 const data = JSON.parse(msg.toString());
                 const ts = Date.now();
+                
+                // MQTT Werte werden an die bestehenden Graphen angehängt
                 if (data.temperature || data.temp) chartT.appendData([{ data: [{ x: ts, y: data.temperature || data.temp }] }]);
                 if (data.humidity || data.hum) chartH.appendData([{ data: [{ x: ts, y: data.humidity || data.hum }] }]);
                 if (data.tvoc) chartV.appendData([{ data: [{ x: ts, y: data.tvoc }] }]);
-                updateUI('temp', data.temperature || data.temp); updateUI('hum', data.humidity || data.hum);
-                updateUI('tvoc', data.tvoc); updateUI('co2', data.co2);
+                
+                updateUI('temp', data.temperature || data.temp); 
+                updateUI('hum', data.humidity || data.hum);
+                updateUI('tvoc', data.tvoc); 
+                updateUI('co2', data.co2);
             });
         }
 
+        // Ablauf: Charts initialisieren -> Historische Daten aus DB laden -> MQTT für Live-Updates starten
         initCharts();
         if (deviceId) fetchHistory().then(initMqtt);
     </script>
