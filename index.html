@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QBS Command Center | Enterprise Analytics</title>
+    <title>QBS Command Center | Final Edition</title>
     <link rel="icon" href="data:,">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
@@ -40,26 +40,26 @@
     <main class="max-w-[1800px] mx-auto p-6 space-y-6">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div class="dashboard-card"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Temperatur</p><div class="flex items-baseline gap-1"><span id="val-temp" class="text-3xl font-black text-orange-500">--.-</span><span class="text-sm font-bold opacity-40">°C</span></div></div>
-            <div class="dashboard-card"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Luftfeuchtigkeit</p><div class="flex items-baseline gap-1"><span id="val-hum" class="text-3xl font-black text-blue-500">--</span><span class="text-sm font-bold opacity-40">%</span></div></div>
+            <div class="dashboard-card"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Feuchtigkeit</p><div class="flex items-baseline gap-1"><span id="val-hum" class="text-3xl font-black text-blue-500">--</span><span class="text-sm font-bold opacity-40">%</span></div></div>
             <div class="dashboard-card"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">TVOC</p><div class="flex items-baseline gap-1"><span id="val-tvoc" class="text-3xl font-black text-purple-500">----</span><span class="text-sm font-bold opacity-40">ppb</span></div></div>
             <div class="dashboard-card"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">CO2 Wert</p><div class="flex items-baseline gap-1"><span id="val-co2" class="text-3xl font-black text-emerald-600">----</span><span class="text-sm font-bold opacity-40">ppm</span></div></div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="dashboard-card flex flex-col items-center justify-center text-center">
-                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">AQI Index (1-5)</h3>
+                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">AQI Index</h3>
                 <div id="aqi-gauge" class="w-full"></div>
                 <p id="aqi-status" class="text-sm font-black uppercase italic text-slate-500">Lade...</p>
             </div>
             <div class="dashboard-card lg:col-span-2">
-                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Temperatur Verlauf</h3>
+                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 text-orange-500">Temperatur Verlauf</h3>
                 <div id="chart-temp" class="h-[350px]"></div>
             </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="dashboard-card"><h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Luftfeuchtigkeit Verlauf</h3><div id="chart-hum" class="h-[300px]"></div></div>
-            <div class="dashboard-card"><h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">TVOC Verlauf</h3><div id="chart-tvoc" class="h-[300px]"></div></div>
+            <div class="dashboard-card"><h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 text-blue-500">Feuchtigkeit Verlauf</h3><div id="chart-hum" class="h-[300px]"></div></div>
+            <div class="dashboard-card"><h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 text-purple-500">TVOC Verlauf</h3><div id="chart-tvoc" class="h-[300px]"></div></div>
         </div>
     </main>
 
@@ -91,7 +91,11 @@
             markers: { size: 0 },
             dataLabels: { enabled: false },
             fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.02 } },
-            xaxis: { type: 'datetime', labels: { datetimeUTC: false, style: { colors: '#94a3b8', fontSize: '10px', fontWeight: 600 } }, axisBorder: { show: false }, axisTicks: { show: false } },
+            xaxis: { 
+                type: 'datetime', 
+                labels: { datetimeUTC: false, style: { colors: '#94a3b8', fontSize: '10px', fontWeight: 600 } },
+                axisBorder: { show: false }, axisTicks: { show: false }
+            },
             yaxis: { min: min, max: max, tickAmount: 4, labels: { formatter: (v) => v.toFixed(unit === 'ppb' ? 0 : 1) + unit, style: { colors: '#94a3b8', fontWeight: 700 } } },
             grid: { borderColor: '#f1f5f9', strokeDashArray: 3 }
         });
@@ -122,7 +126,14 @@
                 const step = Math.ceil(data.length / 300);
                 const sampledData = (step > 1) ? data.filter((_, i) => i % step === 0) : data;
 
-                const xaxisConfig = { min: cutoff.getTime(), max: now.getTime(), labels: { format: currentDays === 1 ? 'HH:mm' : 'dd. MMM' }, tickAmount: 6 };
+                // FIXIERTE ZEITACHSE
+                const xaxisConfig = {
+                    min: cutoff.getTime(),
+                    max: now.getTime(),
+                    labels: { format: currentDays === 1 ? 'HH:mm' : 'dd. MMM' },
+                    tickAmount: 6
+                };
+
                 const update = (chart, points) => {
                     chart.updateSeries([{ data: points }], true);
                     chart.updateOptions({ xaxis: xaxisConfig });
@@ -151,18 +162,33 @@
         }
 
         function initMqtt() {
-            const clientId = 'web_' + Math.random().toString(16).substring(2, 10);
-            const options = { clientId, username: CONFIG.mqttUser, password: CONFIG.mqttPass, clean: true, connectTimeout: 5000, reconnectPeriod: 2000, protocolVersion: 4, path: '/mqtt' };
+            // FIX FÜR WEBSOCKET-ERROR
+            const clientId = 'web_client_' + Math.random().toString(16).substr(2, 8);
+            const options = {
+                clientId: clientId,
+                username: CONFIG.mqttUser,
+                password: CONFIG.mqttPass,
+                clean: true,
+                connectTimeout: 5000,
+                reconnectPeriod: 2000,
+                protocolVersion: 4, // MQTT 3.1.1 ist stabiler für EMQX Cloud
+                path: '/mqtt' // Zwingend erforderlich für WSS
+            };
+
             const client = mqtt.connect(CONFIG.mqttBroker, options);
+
             client.on('connect', () => { 
                 document.getElementById('status-dot').className = 'live-dot bg-green-500';
                 document.getElementById('status-text').innerText = 'NETWORK LIVE';
                 client.subscribe(`${mqttId}/sensor`);
             });
-            client.on('error', () => { 
+
+            client.on('error', (err) => { 
+                console.error("MQTT Fehler:", err);
                 document.getElementById('status-dot').className = 'live-dot bg-red-500';
                 document.getElementById('status-text').innerText = 'ERROR';
             });
+
             client.on('message', (t, msg) => {
                 const data = JSON.parse(msg.toString());
                 const ts = Date.now();
