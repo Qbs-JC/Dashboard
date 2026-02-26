@@ -15,8 +15,8 @@
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
         .metric-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border: 2px solid transparent; cursor: pointer; }
         .metric-card.active { border-color: #3b82f6; background-color: #eff6ff; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.1); }
-        .time-btn { transition: all 0.2s; }
-        .time-btn.active { background-color: #1e293b; color: white; }
+        .time-btn { transition: all 0.2s; border: 1px solid transparent; }
+        .time-btn.active { background-color: #1e293b; color: white; border-color: #1e293b; }
         .live-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; animation: pulse 2s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
     </style>
@@ -101,6 +101,8 @@
         const urlParams = new URLSearchParams(window.location.search);
         const deviceId = urlParams.get('id');
         let mainChart, aqiGauge;
+        
+        // Status-Variablen um die Ansicht zu merken
         let currentMetric = 'temp';
         let currentDays = 1;
 
@@ -111,7 +113,7 @@
                 colors: ['#f97316', '#3b82f6', '#a855f7'],
                 stroke: { curve: 'smooth', width: 4 },
                 xaxis: { type: 'datetime', labels: { datetimeUTC: false } },
-                yaxis: { min: 0, max: 40, tickAmount: 8 }, // Initial für Temp
+                yaxis: { min: 0, max: 40, tickAmount: 8 }, // Default Start
                 legend: { show: false },
                 grid: { borderColor: '#f1f5f9' },
                 fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05 } }
@@ -147,11 +149,11 @@
         }
 
         function switchMetric(m) {
-            currentMetric = m;
+            currentMetric = m; // Merken, was gerade aktiv ist
             const labels = { temp: 'Temperatur Analyse', hum: 'Luftfeuchtigkeit Analyse', tvoc: 'TVOC Belastung' };
             const units = { temp: '°C', hum: '%', tvoc: 'ppb' };
             
-            // FIXIERTE Y-ACHSEN
+            // FIXIERTE Y-ACHSEN wie gewünscht
             const limits = {
                 temp: { min: 0, max: 40, tickAmount: 8 },
                 hum: { min: 0, max: 100, tickAmount: 10 },
@@ -159,14 +161,17 @@
             };
             const config = limits[m];
 
+            // UI Karten-Status
             document.querySelectorAll('.metric-card').forEach(c => c.classList.remove('active'));
             document.getElementById(`card-${m}`)?.classList.add('active');
             document.getElementById('chart-title').innerText = labels[m];
 
+            // Graphen umschalten (Hintergrund bleibt erhalten)
             ['temp', 'hum', 'tvoc'].forEach(name => {
                 if (name === m) mainChart.showSeries(name); else mainChart.hideSeries(name);
             });
 
+            // Achsen-Update anwenden
             mainChart.updateOptions({
                 yaxis: {
                     min: config.min,
@@ -181,13 +186,14 @@
             });
         }
 
-        function changeTimeRange(days) {
+        async function changeTimeRange(days) {
             currentDays = days;
             document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
             const btnId = days === 1 ? 'btn-1d' : (days === 5 ? 'btn-5d' : 'btn-30d');
             document.getElementById(btnId).classList.add('active');
             
-            fetchHistory();
+            // Lade Daten neu aus der DB
+            await fetchHistory();
         }
 
         function updateUI(metric, val) {
@@ -218,7 +224,6 @@
         async function fetchHistory() {
             if (!deviceId) return;
             
-            // Zeitstempel berechnen
             const timeLimit = new Date();
             timeLimit.setDate(timeLimit.getDate() - currentDays);
             const isoString = timeLimit.toISOString();
@@ -229,20 +234,23 @@
                 .gte('created_at', isoString)
                 .order('created_at', { ascending: true });
 
-            if (error) { console.error("Supabase Error:", error); return; }
+            if (error) { console.error("DB Error:", error); return; }
 
             if (data && data.length > 0) {
-                const last = data[data.length-1];
                 const seriesData = [
                     { name: 'temp', data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.temp })) },
                     { name: 'hum', data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.hum })) },
                     { name: 'tvoc', data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.tvoc })) }
                 ];
-                mainChart.updateSeries(seriesData);
+
+                // UpdateSeries setzt den Chart oft zurück, daher rufen wir danach switchMetric auf
+                await mainChart.updateSeries(seriesData, false); // false = keine Animation beim Laden großer Mengen
+                
+                // WICHTIG: Ansicht wiederherstellen (Y-Achse und Sichtbarkeit)
+                switchMetric(currentMetric);
+
+                const last = data[data.length-1];
                 ['temp', 'hum', 'tvoc', 'co2'].forEach(m => updateUI(m, last[m]));
-            } else {
-                // Falls keine Daten im Zeitraum vorhanden sind, Chart leeren
-                mainChart.updateSeries([{ name: 'temp', data: [] }, { name: 'hum', data: [] }, { name: 'tvoc', data: [] }]);
             }
         }
 
@@ -257,15 +265,18 @@
                     const data = JSON.parse(msg.toString());
                     const ts = Date.now();
                     const updates = [];
+                    // Live-Updates fließen immer in alle Serien ein
                     if (data.temp !== undefined) updates.push({ name: 'temp', data: [{ x: ts, y: data.temp }] });
                     if (data.hum !== undefined) updates.push({ name: 'hum', data: [{ x: ts, y: data.hum }] });
                     if (data.tvoc !== undefined) updates.push({ name: 'tvoc', data: [{ x: ts, y: data.tvoc }] });
+                    
                     if (updates.length > 0) mainChart.appendData(updates);
                     Object.keys(data).forEach(m => updateUI(m, data[m]));
                 } catch (e) { console.error(e); }
             });
         }
 
+        // App Start
         initCharts();
         if (deviceId) {
             document.getElementById('status-badge').innerText = "FETCHING...";
