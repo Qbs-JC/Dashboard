@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QBS Quad Analytics | Enterprise IoT</title>
+    <title>QBS Smart Health | Enterprise IoT</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
@@ -12,7 +12,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
 
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f1f5f9; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f1f5f9; transition: background-color 0.5s ease; }
+        .metric-card { transition: all 0.5s ease; border: 1px solid #e2e8f0; }
         .live-pulse { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; animation: pulse 2s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
     </style>
@@ -23,47 +24,57 @@
         <div class="flex items-center gap-4">
             <div class="p-2 bg-blue-600 rounded-xl shadow-lg text-white font-bold text-xl">Q</div>
             <div>
-                <h1 class="text-xl font-bold tracking-tight uppercase">QBS Command Center</h1>
+                <h1 class="text-xl font-bold tracking-tight uppercase">QBS Health Monitor</h1>
+                <p class="text-[9px] text-blue-400 font-bold uppercase tracking-[0.4em]">Air Quality & Environment</p>
             </div>
         </div>
         <div id="status-badge" class="bg-slate-800 border border-slate-700 px-4 py-2 rounded-2xl text-[10px] font-black text-slate-400">
-            <span class="live-pulse bg-slate-500"></span> LOADING...
+            <span class="live-pulse bg-slate-500"></span> CONNECTING...
         </div>
     </nav>
 
     <main class="max-w-[1600px] mx-auto p-8 space-y-8">
         
-        <div class="flex justify-between items-center">
-            <p class="text-sm font-bold text-slate-500 uppercase tracking-widest">Geräte-ID: <span id="info-id" class="text-blue-600">---</span></p>
-            <div class="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
-                <button onclick="changeInterval(1)" id="i-1" class="px-4 py-1.5 text-[10px] font-black rounded-lg bg-slate-900 text-white">1 TAG</button>
-                <button onclick="changeInterval(5)" id="i-5" class="px-4 py-1.5 text-[10px] font-black rounded-lg text-slate-500">5 TAGE</button>
-            </div>
-        </div>
-
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div class="bg-white rounded-[2rem] p-6 shadow-sm border-b-4 border-orange-500"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Temperatur</p><div class="flex items-baseline gap-1"><span id="val-temp" class="text-3xl font-black">--.-</span><span class="text-sm text-slate-400 font-bold">°C</span></div></div>
-            <div class="bg-white rounded-[2rem] p-6 shadow-sm border-b-4 border-blue-500"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Feuchtigkeit</p><div class="flex items-baseline gap-1"><span id="val-hum" class="text-3xl font-black">--</span><span class="text-sm text-slate-400 font-bold">%</span></div></div>
-            <div class="bg-white rounded-[2rem] p-6 shadow-sm border-b-4 border-emerald-500"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">CO2 Level</p><div class="flex items-baseline gap-1"><span id="val-co2" class="text-3xl font-black">----</span><span class="text-sm text-slate-400 font-bold">ppm</span></div></div>
-            <div class="bg-white rounded-[2rem] p-6 shadow-sm border-b-4 border-purple-500"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">TVOC Index</p><div class="flex items-baseline gap-1"><span id="val-tvoc" class="text-3xl font-black">----</span><span class="text-sm text-slate-400 font-bold">ppb</span></div></div>
+            <div id="card-temp" class="bg-white rounded-[2rem] p-6 shadow-sm metric-card">
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Temperatur</p>
+                <div class="flex items-baseline gap-1"><span id="val-temp" class="text-3xl font-black">--.-</span><span class="text-sm font-bold opacity-60">°C</span></div>
+                <p id="label-temp" class="text-[9px] font-bold mt-2 uppercase opacity-50">Messung...</p>
+            </div>
+            <div id="card-hum" class="bg-white rounded-[2rem] p-6 shadow-sm metric-card">
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Feuchtigkeit</p>
+                <div class="flex items-baseline gap-1"><span id="val-hum" class="text-3xl font-black">--</span><span class="text-sm font-bold opacity-60">%</span></div>
+                <p id="label-hum" class="text-[9px] font-bold mt-2 uppercase opacity-50">Messung...</p>
+            </div>
+            <div id="card-co2" class="bg-white rounded-[2rem] p-6 shadow-sm metric-card border-b-4 border-emerald-500">
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">CO2 AQI</p>
+                <div class="flex items-baseline gap-1"><span id="val-co2" class="text-3xl font-black text-slate-900">----</span><span class="text-sm font-bold opacity-60">ppm</span></div>
+                <p id="label-co2" class="text-[9px] font-bold mt-2 uppercase opacity-50 italic">Lüftungsstatus...</p>
+            </div>
+            <div id="card-tvoc" class="bg-white rounded-[2rem] p-6 shadow-sm metric-card">
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">TVOC</p>
+                <div class="flex items-baseline gap-1"><span id="val-tvoc" class="text-3xl font-black">----</span><span class="text-sm font-bold opacity-60">ppb</span></div>
+                <p id="label-tvoc" class="text-[9px] font-bold mt-2 uppercase opacity-50">Qualität...</p>
+            </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div class="bg-white border border-slate-200 rounded-[2rem] p-6 shadow-sm">
-                <h3 class="font-bold text-lg text-slate-800 mb-4">Temperaturverlauf</h3>
-                <div id="chart-temp" class="h-[300px]"></div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="bg-white rounded-[2.5rem] p-8 shadow-sm">
+                <h3 class="font-bold text-slate-400 text-xs uppercase tracking-widest mb-6">Temperaturhistorie</h3>
+                <div id="chart-temp"></div>
             </div>
-            <div class="bg-white border border-slate-200 rounded-[2rem] p-6 shadow-sm">
-                <h3 class="font-bold text-lg text-slate-800 mb-4">Luftfeuchtigkeit</h3>
-                <div id="chart-hum" class="h-[300px]"></div>
+            <div class="bg-white rounded-[2.5rem] p-8 shadow-sm text-center">
+                <h3 class="font-bold text-slate-400 text-xs uppercase tracking-widest mb-4 text-left">Air Quality Index (CO2)</h3>
+                <div id="gauge-co2" class="mx-auto"></div>
+                <div class="mt-2 text-sm font-bold text-slate-500" id="gauge-info text-emerald-600">Luftqualität: Optimal</div>
             </div>
-            <div class="bg-white border border-slate-200 rounded-[2rem] p-6 shadow-sm">
-                <h3 class="font-bold text-lg text-slate-800 mb-4">CO2 Konzentration</h3>
-                <div id="chart-co2" class="h-[300px]"></div>
+            <div class="bg-white rounded-[2.5rem] p-8 shadow-sm">
+                <h3 class="font-bold text-slate-400 text-xs uppercase tracking-widest mb-6">Feuchtigkeitsverlauf</h3>
+                <div id="chart-hum"></div>
             </div>
-            <div class="bg-white border border-slate-200 rounded-[2rem] p-6 shadow-sm">
-                <h3 class="font-bold text-lg text-slate-800 mb-4">TVOC (Luftqualität)</h3>
-                <div id="chart-tvoc" class="h-[300px]"></div>
+            <div class="bg-white rounded-[2.5rem] p-8 shadow-sm">
+                <h3 class="font-bold text-slate-400 text-xs uppercase tracking-widest mb-6">TVOC Belastung</h3>
+                <div id="chart-tvoc"></div>
             </div>
         </div>
     </main>
@@ -79,109 +90,124 @@
             mqttPass: 'web_password123'
         };
 
-        // Konfiguration für jeden Graphen (Farben & Skalen-Limits gegen Zacken)
-        const METRICS_CONFIG = {
-            temp: { label: 'Temperatur', color: '#f97316', unit: '°C', min: 0, max: 50 },
-            hum: { label: 'Feuchtigkeit', color: '#3b82f6', unit: '%', min: 0, max: 100 },
-            co2: { label: 'CO2', color: '#10b981', unit: 'ppm', min: 400, max: 2000 },
-            tvoc: { label: 'TVOC', color: '#a855f7', unit: 'ppb', min: 0, max: 500 }
-        };
-
-        let currentInterval = 1;
-        const charts = {}; // Speicher für die 4 Chart-Instanzen
-        
+        const charts = {};
         const urlParams = new URLSearchParams(window.location.search);
         const deviceId = urlParams.get('id');
-        document.getElementById('info-id').innerText = deviceId || '---';
-
         const sbClient = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
 
-        // Initialisiert 4 separate ApexCharts
-        function initCharts() {
-            Object.keys(METRICS_CONFIG).forEach(m => {
-                const config = METRICS_CONFIG[m];
-                const options = {
-                    chart: { type: 'area', height: 300, toolbar: { show: false }, animations: { enabled: true, easing: 'linear', speed: 800 }, zoom: { enabled: false } },
-                    series: [{ name: config.label, data: [] }],
-                    colors: [config.color],
+        function initUI() {
+            // Area Charts (Temp, Hum, TVOC)
+            ['temp', 'hum', 'tvoc'].forEach(m => {
+                const color = m === 'temp' ? '#f97316' : (m === 'hum' ? '#3b82f6' : '#a855f7');
+                charts[m] = new ApexCharts(document.querySelector(`#chart-${m}`), {
+                    chart: { type: 'area', height: 280, toolbar: { show: false }, zoom: { enabled: false } },
+                    series: [{ name: m, data: [] }],
+                    colors: [color],
                     stroke: { curve: 'smooth', width: 3 },
-                    fill: { type: 'gradient', gradient: { opacityFrom: 0.5, opacityTo: 0.1 } },
-                    xaxis: { type: 'datetime', labels: { style: { colors: '#94a3b8', fontWeight: 600 } } },
-                    // HIER IST DER FIX: Feste Min/Max Werte für die Y-Achse
-                    yaxis: { min: config.min, max: config.max, labels: { style: { colors: '#94a3b8', fontWeight: 600 } }, title: { text: config.unit } },
-                    grid: { borderColor: '#f1f5f9', strokeDashArray: 5 },
-                    dataLabels: { enabled: false }
-                };
-                charts[m] = new ApexCharts(document.querySelector(`#chart-${m}`), options);
+                    xaxis: { type: 'datetime' },
+                    yaxis: { labels: { style: { colors: '#94a3b8' } } }
+                });
                 charts[m].render();
             });
+
+            // CO2 Gauge mit 5 Zonen
+            charts.co2 = new ApexCharts(document.querySelector("#gauge-co2"), {
+                chart: { type: 'radialBar', height: 400 },
+                series: [0],
+                plotOptions: {
+                    radialBar: {
+                        startAngle: -135, endAngle: 135,
+                        hollow: { size: '70%' },
+                        track: { strokeWidth: '100%' },
+                        dataLabels: {
+                            name: { show: true, color: '#64748b', fontSize: '12px', offsetY: -10 },
+                            value: { fontSize: '42px', fontWeight: '900', offsetY: 15, formatter: (v) => Math.round((v / 100) * 2000) }
+                        }
+                    }
+                },
+                fill: {
+                    type: 'gradient',
+                    gradient: {
+                        shade: 'dark', type: 'horizontal', gradientToColors: ['#be123c'],
+                        stops: [0, 25, 50, 75, 100], // 5 Bereiche
+                        colorStops: [
+                            { offset: 0, color: "#065f46", opacity: 1 }, // Exzellent
+                            { offset: 30, color: "#10b981", opacity: 1 }, // Gut
+                            { offset: 50, color: "#f59e0b", opacity: 1 }, // Lüften
+                            { offset: 75, color: "#ef4444", opacity: 1 }, // Schlecht
+                            { offset: 100, color: "#9f1239", opacity: 1 } // Sehr schlecht
+                        ]
+                    }
+                },
+                labels: ['ppm']
+            });
+            charts.co2.render();
+        }
+
+        function updateColors(metric, val) {
+            const card = document.getElementById(`card-${metric}`);
+            const label = document.getElementById(`label-${metric}`);
+            
+            if (metric === 'temp') {
+                if (val < 18) { card.style.backgroundColor = '#f0f9ff'; label.innerText = 'Kühl'; }
+                else if (val <= 25) { card.style.backgroundColor = '#f0fdf4'; label.innerText = 'Optimal'; }
+                else { card.style.backgroundColor = '#fef2f2'; label.innerText = 'Heiß'; }
+            }
+            if (metric === 'hum') {
+                if (val < 30) { card.style.backgroundColor = '#fffbeb'; label.innerText = 'Trocken'; }
+                else if (val <= 60) { card.style.backgroundColor = '#f0fdf4'; label.innerText = 'Optimal'; }
+                else { card.style.backgroundColor = '#eff6ff'; label.innerText = 'Feucht'; }
+            }
+            if (metric === 'co2') {
+                let info = "";
+                if (val < 600) { card.style.backgroundColor = '#ecfdf5'; info = "Exzellent"; }
+                else if (val < 1000) { card.style.backgroundColor = '#f0fdf4'; info = "Gut (OK)"; }
+                else if (val < 1500) { card.style.backgroundColor = '#fffbeb'; info = "Bald Lüften!"; }
+                else if (val < 2000) { card.style.backgroundColor = '#fff1f2'; info = "Jetzt Lüften!"; }
+                else { card.style.backgroundColor = '#fef2f2'; info = "Kritisch!"; }
+                label.innerText = info;
+                document.getElementById('gauge-info').innerText = `Status: ${info}`;
+                charts.co2.updateSeries([Math.min((val / 2000) * 100, 100)]);
+            }
         }
 
         async function fetchHistory() {
             if (!deviceId) return;
-            const pastDate = new Date(Date.now() - (currentInterval * 24 * 60 * 60 * 1000));
-            
-            const { data, error } = await sbClient
-                .from(CONFIG.dbTable)
-                .select('*')
-                .eq(CONFIG.dbMacColumn, deviceId)
-                .gte('created_at', pastDate.toISOString())
-                .order('created_at', { ascending: true });
-
-            if (!error && data && data.length > 0) {
-                // Alle 4 Graphen mit Historie füllen
-                Object.keys(METRICS_CONFIG).forEach(m => {
-                    const points = data.map(d => ({ x: new Date(d.created_at).getTime(), y: d[m] }));
-                    charts[m].updateSeries([{ name: METRICS_CONFIG[m].label, data: points }]);
+            const { data } = await sbClient.from(CONFIG.dbTable).select('*').eq(CONFIG.dbMacColumn, deviceId).order('created_at', { ascending: false }).limit(50);
+            if (data && data.length > 0) {
+                const last = data[0];
+                const history = data.reverse();
+                ['temp', 'hum', 'tvoc'].forEach(m => {
+                    document.getElementById(`val-${m}`).innerText = last[m];
+                    charts[m].updateSeries([{ data: history.map(d => ({ x: new Date(d.created_at).getTime(), y: d[m] })) }]);
+                    updateColors(m, last[m]);
                 });
-                // Live-Karten oben updaten
-                const last = data[data.length - 1];
-                Object.keys(METRICS_CONFIG).forEach(m => document.getElementById(`val-${m}`).innerText = last[m]);
+                document.getElementById(`val-co2`).innerText = last.co2;
+                updateColors('co2', last.co2);
             }
         }
 
-        function changeInterval(days) {
-            currentInterval = days;
-            ['i-1', 'i-5'].forEach(id => {
-                document.getElementById(id).classList.remove('bg-slate-900', 'text-white');
-                document.getElementById(id).classList.add('text-slate-500');
-            });
-            document.getElementById(`i-${days}`).classList.replace('text-slate-500', 'bg-slate-900');
-            document.getElementById(`i-${days}`).classList.add('text-white');
-            fetchHistory();
-        }
-
         function initMqtt() {
-            if (!deviceId) return;
             const client = mqtt.connect(CONFIG.mqttBroker, { username: CONFIG.mqttUser, password: CONFIG.mqttPass });
-            
             client.on('connect', () => {
-                const badge = document.getElementById('status-badge');
-                badge.innerHTML = '<span class="live-pulse bg-green-500 shadow-[0_0_10px_#22c55e]"></span> SYSTEM ACTIVE';
-                badge.classList.replace('text-slate-400', 'text-green-500');
+                document.getElementById('status-badge').innerHTML = '<span class="live-pulse bg-green-500"></span> ONLINE';
                 client.subscribe(`esp32-${deviceId}/sensor`);
             });
-
             client.on('message', (t, msg) => {
-                try {
-                    const data = JSON.parse(msg.toString());
-                    const ts = new Date().getTime();
-                    // Gehe durch alle Metriken und update falls Daten vorhanden
-                    Object.keys(METRICS_CONFIG).forEach(m => {
-                        if (data[m] !== undefined && data[m] !== null) {
-                            document.getElementById(`val-${m}`).innerText = data[m];
-                            // Live-Punkt an den jeweiligen Graphen anhängen
-                            charts[m].appendData([{ data: [{ x: ts, y: data[m] }] }]);
-                        }
-                    });
-                } catch (e) { console.error("MQTT Error", e); }
+                const data = JSON.parse(msg.toString());
+                const ts = Date.now();
+                Object.keys(data).forEach(m => {
+                    if (document.getElementById(`val-${m}`)) {
+                        document.getElementById(`val-${m}`).innerText = data[m];
+                        updateColors(m, data[m]);
+                        if (charts[m] && m !== 'co2') charts[m].appendData([{ data: [{ x: ts, y: data[m] }] }]);
+                    }
+                });
             });
         }
 
-        initCharts();
-        if (deviceId) {
-            fetchHistory().then(initMqtt);
-        }
+        initUI();
+        if (deviceId) { document.getElementById('info-id').innerText = deviceId; fetchHistory().then(initMqtt); }
     </script>
 </body>
 </html>
