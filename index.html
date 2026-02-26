@@ -147,7 +147,7 @@
             chart: { type: 'area', height: 300, toolbar: { show: false }, animations: { enabled: true, easing: 'linear', dynamicAnimation: { speed: 800 } }, zoom: { enabled: false } },
             series: [{ name: unit, data: [] }],
             colors: [color],
-            stroke: { curve: 'smooth', width: 3 },
+            stroke: { curve: 'monotoneCubic', width: 3 },
             fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05 } },
             xaxis: { type: 'datetime', labels: { datetimeUTC: false, format: 'HH:mm', style: { colors: '#94a3b8', fontSize: '9px' } } },
             yaxis: { min: min, max: max, tickAmount: 4, labels: { formatter: (v) => v.toFixed(unit === 'ppb' ? 0 : 1) + unit, style: { colors: '#94a3b8', fontWeight: 700 } } },
