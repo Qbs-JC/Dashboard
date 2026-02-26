@@ -17,9 +17,25 @@
         .live-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; animation: pulse 2s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
         .apexcharts-toolbar { display: none !important; }
+        
+        /* Loading Overlay */
+        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.95); z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+        .loading-spinner { width: 50px; height: 50px; border: 4px solid rgba(59, 130, 246, 0.2); border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* Time Range Buttons */
+        .time-range-btn { padding: 0.5rem 1.5rem; border-radius: 0.75rem; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; transition: all 0.2s; border: 2px solid #e2e8f0; background: white; color: #64748b; }
+        .time-range-btn:hover { border-color: #3b82f6; color: #3b82f6; }
+        .time-range-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; }
     </style>
 </head>
 <body class="text-slate-900 antialiased">
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <p class="text-white mt-4 text-lg font-bold">Daten werden geladen...</p>
+    </div>
 
     <nav class="bg-slate-900 text-white px-8 py-4 flex justify-between items-center sticky top-0 z-[100] shadow-2xl">
         <div class="flex items-center gap-4">
@@ -32,6 +48,15 @@
             </div>
         </div>
     </nav>
+
+    <!-- Time Range Selector -->
+    <div class="max-w-[1800px] mx-auto px-6 pt-6">
+        <div class="flex gap-3 justify-center">
+            <button class="time-range-btn active" data-range="24h" onclick="changeTimeRange('24h')">24 Stunden</button>
+            <button class="time-range-btn" data-range="5d" onclick="changeTimeRange('5d')">5 Tage</button>
+            <button class="time-range-btn" data-range="30d" onclick="changeTimeRange('30d')">30 Tage</button>
+        </div>
+    </div>
 
     <main class="max-w-[1800px] mx-auto p-6 space-y-6">
         
@@ -93,7 +118,30 @@
         const urlParams = new URLSearchParams(window.location.search);
         const deviceId = urlParams.get('id');
         
-        let chartT, chartH, chartV, aqiGauge;
+        let chartT, chartH, chartV, aqiGauge, mqttClient;
+        let currentTimeRange = '24h'; // Default: 24 Stunden
+
+        // Zeitraum in Millisekunden umrechnen
+        function getTimeRangeMs(range) {
+            const hour = 60 * 60 * 1000;
+            const day = 24 * hour;
+            switch(range) {
+                case '24h': return day;
+                case '5d': return 5 * day;
+                case '30d': return 30 * day;
+                default: return day;
+            }
+        }
+
+        // Zeitformat für X-Achse basierend auf Zeitraum
+        function getTimeFormat(range) {
+            switch(range) {
+                case '24h': return 'HH:mm';
+                case '5d': return 'dd.MM HH:mm';
+                case '30d': return 'dd.MM.yy';
+                default: return 'HH:mm';
+            }
+        }
 
         const baseOptions = (color, min, max, unit) => ({
             chart: { type: 'area', height: 300, toolbar: { show: false }, animations: { enabled: true, easing: 'linear', dynamicAnimation: { speed: 800 } }, zoom: { enabled: false } },
@@ -180,10 +228,18 @@
             }
         }
 
-        async function fetchHistory() {
-            if (!deviceId) return;
+        async function fetchHistory(timeRange = '24h') {
+            if (!deviceId) {
+                console.error("Keine Device-ID gefunden!");
+                hideLoading();
+                return;
+            }
+            
             const now = new Date();
-            const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            const rangeMs = getTimeRangeMs(timeRange);
+            const cutoff = new Date(now.getTime() - rangeMs);
+            
+            console.log(`Lade Daten für ${timeRange} (von ${cutoff.toLocaleString()} bis ${now.toLocaleString()})...`);
             
             const { data, error } = await sbClient.from(CONFIG.dbTable)
                 .select('created_at, temperature, humidity, tvoc, co2')
@@ -191,46 +247,100 @@
                 .gte('created_at', cutoff.toISOString())
                 .order('created_at', { ascending: true });
 
-            if (error) { console.error("DB Abfragefehler:", error); return; }
+            if (error) { 
+                console.error("DB Abfragefehler:", error); 
+                hideLoading();
+                return; 
+            }
+
+            console.log(`${data ? data.length : 0} Datenpunkte geladen`);
 
             if (data && data.length > 0) {
-                const xaxisConfig = { min: cutoff.getTime(), max: now.getTime() };
+                const timeFormat = getTimeFormat(timeRange);
+                const xaxisConfig = { 
+                    min: cutoff.getTime(), 
+                    max: now.getTime(),
+                    labels: { 
+                        datetimeUTC: false, 
+                        format: timeFormat,
+                        style: { colors: '#94a3b8', fontSize: '9px' }
+                    }
+                };
 
-                chartT.updateOptions({ xaxis: xaxisConfig, series: [{ data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.temperature })) }] }, false, false);
-                chartH.updateOptions({ xaxis: xaxisConfig, series: [{ data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.humidity })) }] }, false, false);
-                chartV.updateOptions({ xaxis: xaxisConfig, series: [{ data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.tvoc })) }] }, false, false);
+                chartT.updateOptions({ xaxis: xaxisConfig, series: [{ data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.temperature })) }] }, false, true);
+                chartH.updateOptions({ xaxis: xaxisConfig, series: [{ data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.humidity })) }] }, false, true);
+                chartV.updateOptions({ xaxis: xaxisConfig, series: [{ data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.tvoc })) }] }, false, true);
 
                 const last = data[data.length - 1];
                 updateUI('temp', last.temperature); 
                 updateUI('hum', last.humidity); 
                 updateUI('tvoc', last.tvoc); 
                 updateUI('co2', last.co2);
+            } else {
+                console.warn("Keine Daten gefunden für diesen Zeitraum");
             }
+            
+            hideLoading();
+        }
+
+        function hideLoading() {
+            const overlay = document.getElementById('loading-overlay');
+            if (overlay) overlay.style.display = 'none';
+        }
+
+        function changeTimeRange(range) {
+            currentTimeRange = range;
+            
+            // Button-States aktualisieren
+            document.querySelectorAll('.time-range-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.range === range) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            // Daten neu laden
+            fetchHistory(range);
         }
 
         function initMqtt() {
-            const client = mqtt.connect(CONFIG.mqttBroker, { username: CONFIG.mqttUser, password: CONFIG.mqttPass });
-            client.on('connect', () => {
+            mqttClient = mqtt.connect(CONFIG.mqttBroker, { username: CONFIG.mqttUser, password: CONFIG.mqttPass });
+            mqttClient.on('connect', () => {
                 document.getElementById('status-badge').innerHTML = '<span class="live-dot bg-green-500"></span> NETWORK LIVE';
-                client.subscribe(`esp32-${deviceId}/sensor`);
+                mqttClient.subscribe(`esp32-${deviceId}/sensor`);
+                console.log('MQTT verbunden und Topic abonniert');
             });
-            client.on('message', (t, msg) => {
+            mqttClient.on('message', (t, msg) => {
                 const data = JSON.parse(msg.toString());
                 const ts = Date.now();
                 
-                if (data.temperature || data.temp) chartT.appendData([{ data: [{ x: ts, y: data.temperature || data.temp }] }]);
-                if (data.humidity || data.hum) chartH.appendData([{ data: [{ x: ts, y: data.humidity || data.hum }] }]);
-                if (data.tvoc) chartV.appendData([{ data: [{ x: ts, y: data.tvoc }] }]);
+                // Nur Live-Daten hinzufügen wenn im 24h Modus (sonst würde die Skalierung nicht passen)
+                if (currentTimeRange === '24h') {
+                    if (data.temperature || data.temp) chartT.appendData([{ data: [{ x: ts, y: data.temperature || data.temp }] }]);
+                    if (data.humidity || data.hum) chartH.appendData([{ data: [{ x: ts, y: data.humidity || data.hum }] }]);
+                    if (data.tvoc) chartV.appendData([{ data: [{ x: ts, y: data.tvoc }] }]);
+                }
                 
                 updateUI('temp', data.temperature || data.temp); 
                 updateUI('hum', data.humidity || data.hum);
                 updateUI('tvoc', data.tvoc); 
                 updateUI('co2', data.co2);
             });
+            mqttClient.on('error', (err) => {
+                console.error('MQTT Fehler:', err);
+            });
         }
 
+        // Beim Start: Charts initialisieren, dann historische Daten laden, dann MQTT verbinden
         initCharts();
-        if (deviceId) fetchHistory().then(initMqtt);
+        if (deviceId) {
+            fetchHistory(currentTimeRange).then(() => {
+                initMqtt();
+            });
+        } else {
+            hideLoading();
+            alert('Keine Device-ID in der URL gefunden! Bitte fügen Sie ?id=IHRE_DEVICE_ID zur URL hinzu.');
+        }
     </script>
 </body>
 </html>
