@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QBS Command Center | Stock Market Edition</title>
-    <link rel="icon" href="data:,"> <script src="https://cdn.tailwindcss.com"></script>
+    <title>QBS Command Center | Final Stock Edition</title>
+    <link rel="icon" href="data:,">
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -12,7 +13,7 @@
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f1f5f9; }
         .dashboard-card { background: white; border-radius: 1.5rem; padding: 1.5rem; border: 1px solid #e2e8f0; }
-        .time-btn { transition: all 0.2s; border: 1px solid #cbd5e1; padding: 0.4rem 0.8rem; font-size: 0.7rem; font-weight: 700; border-radius: 0.5rem; }
+        .time-btn { transition: all 0.2s; border: 1px solid #cbd5e1; padding: 0.4rem 0.8rem; font-size: 0.7rem; font-weight: 700; border-radius: 0.5rem; cursor: pointer; }
         .time-btn.active { background-color: #1e293b; color: white; border-color: #1e293b; }
         .live-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; animation: pulse 2s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
@@ -93,7 +94,7 @@
             chart: { type: 'area', height: '100%', toolbar: { show: false }, animations: { enabled: true, easing: 'linear' }, zoom: { enabled: false } },
             series: [{ name: unit, data: [] }],
             colors: [color],
-            stroke: { curve: 'smooth', width: 2 },
+            stroke: { curve: 'smooth', width: 2.5 },
             markers: { size: 0 },
             dataLabels: { enabled: false },
             fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.02 } },
@@ -130,8 +131,8 @@
 
         async function fetchHistory() {
             if (!dbId) return;
-            const cutoff = new Date();
-            cutoff.setDate(cutoff.getDate() - currentDays);
+            const now = new Date();
+            const cutoff = new Date(now.getTime() - currentDays * 24 * 60 * 60 * 1000);
             
             const { data } = await sbClient.from(CONFIG.dbTable)
                 .select('*')
@@ -139,44 +140,29 @@
                 .gte('created_at', cutoff.toISOString())
                 .order('created_at', { ascending: true });
 
-            if (data && data.length > 0) {
-                // ZEITBASIERTES SAMPLING: Wir erlauben max. 1 Punkt pro Minute (bei 1 Tag) 
-                // oder alle 10 Minuten (bei 5 Tagen), damit der "Block" am Ende verschwindet.
-                const minInterval = (currentDays === 1) ? 60000 : 600000; 
-                let lastTime = 0;
-                
-                const sampledData = data.filter(d => {
-                    const currentTime = new Date(d.created_at).getTime();
-                    if (currentTime - lastTime >= minInterval) {
-                        lastTime = currentTime;
-                        return true;
-                    }
-                    return false;
-                });
+            if (data) {
+                // Mit nur 12 Werten über 5 Tage ist kein Sampling nötig, aber wir behalten die Logik für später bei
+                const xaxisConfig = {
+                    min: cutoff.getTime(),
+                    max: now.getTime(),
+                    labels: { format: currentDays === 1 ? 'HH:mm' : 'dd. MMM' },
+                    tickAmount: currentDays === 1 ? 6 : (currentDays === 5 ? 5 : 6)
+                };
 
-                const xaxisConfig = getXAxisConfig(currentDays, data);
-
-                const update = (chart, dataArray) => {
-                    chart.updateSeries([{ data: dataArray }], true);
+                const update = (chart, dataPoints) => {
+                    chart.updateSeries([{ data: dataPoints }], true);
                     chart.updateOptions({ xaxis: xaxisConfig });
                 };
 
-                update(chartT, sampledData.map(d => ({ x: new Date(d.created_at).getTime(), y: d.temperature })));
-                update(chartH, sampledData.map(d => ({ x: new Date(d.created_at).getTime(), y: d.humidity })));
-                update(chartV, sampledData.map(d => ({ x: new Date(d.created_at).getTime(), y: d.tvoc })));
+                update(chartT, data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.temperature })));
+                update(chartH, data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.humidity })));
+                update(chartV, data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.tvoc })));
 
-                const last = data[data.length-1];
-                updateUI('temp', last.temperature); updateUI('hum', last.humidity); updateUI('tvoc', last.tvoc); updateUI('co2', last.co2);
+                if(data.length > 0) {
+                    const last = data[data.length-1];
+                    updateUI('temp', last.temperature); updateUI('hum', last.humidity); updateUI('tvoc', last.tvoc); updateUI('co2', last.co2);
+                }
             }
-        }
-
-        function getXAxisConfig(days, fullData) {
-            const minTime = new Date(fullData[0].created_at).getTime();
-            const maxTime = new Date(fullData[fullData.length-1].created_at).getTime();
-
-            if (days === 1) return { min: minTime, max: maxTime, labels: { format: 'HH:mm' }, tickAmount: 6 };
-            if (days === 5) return { min: minTime, max: maxTime, labels: { format: 'dd. MMM' }, tickAmount: 4 };
-            return { min: minTime, max: maxTime, labels: { format: 'dd. MMM' }, tickAmount: 6 };
         }
 
         function updateUI(metric, val) {
@@ -214,7 +200,8 @@
         async function changeTimeRange(d) {
             currentDays = d;
             document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active', 'text-white'));
-            document.getElementById(`btn-${d}`).classList.add('active', 'text-white');
+            const activeBtn = document.getElementById(`btn-${d}`);
+            if(activeBtn) activeBtn.classList.add('active', 'text-white');
             await fetchHistory();
         }
 
