@@ -147,12 +147,13 @@
             chart: { type: 'area', height: 300, toolbar: { show: false }, animations: { enabled: true, easing: 'linear', dynamicAnimation: { speed: 800 } }, zoom: { enabled: false } },
             series: [{ name: unit, data: [] }],
             colors: [color],
-            stroke: { curve: 'monotoneCubic', width: 3 },
+            stroke: { curve: 'smooth', width: 3 },
             fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05 } },
             xaxis: { type: 'datetime', labels: { datetimeUTC: false, format: 'HH:mm', style: { colors: '#94a3b8', fontSize: '9px' } } },
             yaxis: { min: min, max: max, tickAmount: 4, labels: { formatter: (v) => v.toFixed(unit === 'ppb' ? 0 : 1) + unit, style: { colors: '#94a3b8', fontWeight: 700 } } },
             grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
-            dataLabels: { enabled: false }
+            dataLabels: { enabled: false },
+            markers: { size: 0 }
         });
 
         function initCharts() {
@@ -279,8 +280,21 @@
             if (data && data.length > 0) {
                 const timeFormat = getTimeFormat(timeRange);
                 
+                // Bereinige die Daten: Entferne ungültige Werte und sortiere nach Zeit
+                const cleanData = data
+                    .filter(d => d.created_at && d.temperature !== null && d.humidity !== null)
+                    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                
+                console.log(`Nach Bereinigung: ${cleanData.length} Datenpunkte`);
+                
+                if (cleanData.length === 0) {
+                    console.warn("Keine gültigen Daten nach Bereinigung");
+                    hideLoading();
+                    return;
+                }
+                
                 // Verwende die tatsächlichen Zeitstempel aus den Daten für die X-Achse
-                const timestamps = data.map(d => new Date(d.created_at).getTime());
+                const timestamps = cleanData.map(d => new Date(d.created_at).getTime());
                 const firstTimestamp = Math.min(...timestamps);
                 const lastTimestamp = Math.max(...timestamps);
                 
@@ -299,11 +313,16 @@
 
                 console.log(`X-Achse von ${new Date(firstTimestamp).toLocaleString()} bis ${new Date(lastTimestamp).toLocaleString()}`);
 
-                chartT.updateOptions({ xaxis: xaxisConfig, series: [{ data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.temperature })) }] }, false, true);
-                chartH.updateOptions({ xaxis: xaxisConfig, series: [{ data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.humidity })) }] }, false, true);
-                chartV.updateOptions({ xaxis: xaxisConfig, series: [{ data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.tvoc })) }] }, false, true);
+                // Erstelle sortierte Datenarrays
+                const tempData = cleanData.map(d => ({ x: new Date(d.created_at).getTime(), y: parseFloat(d.temperature) }));
+                const humData = cleanData.map(d => ({ x: new Date(d.created_at).getTime(), y: parseFloat(d.humidity) }));
+                const tvocData = cleanData.map(d => ({ x: new Date(d.created_at).getTime(), y: parseFloat(d.tvoc || 0) }));
 
-                const last = data[data.length - 1];
+                chartT.updateOptions({ xaxis: xaxisConfig, series: [{ data: tempData }] }, false, true);
+                chartH.updateOptions({ xaxis: xaxisConfig, series: [{ data: humData }] }, false, true);
+                chartV.updateOptions({ xaxis: xaxisConfig, series: [{ data: tvocData }] }, false, true);
+
+                const last = cleanData[cleanData.length - 1];
                 updateUI('temp', last.temperature); 
                 updateUI('hum', last.humidity); 
                 updateUI('tvoc', last.tvoc); 
