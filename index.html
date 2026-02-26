@@ -346,7 +346,6 @@
                 mqttClient.subscribe(topic);
                 console.log(`MQTT verbunden und Topic abonniert: ${topic}`);
             });
-            });
             mqttClient.on('message', (t, msg) => {
                 const data = JSON.parse(msg.toString());
                 const ts = Date.now();
