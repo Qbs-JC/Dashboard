@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QBS Global Command Center</title>
-    
     <link rel="icon" href="data:,">
-
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
@@ -21,7 +19,7 @@
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
     </style>
 </head>
-<body class="text-slate-900 antialiased">
+<body class="text-slate-900">
 
     <nav class="bg-slate-900 text-white px-8 py-5 flex justify-between items-center sticky top-0 z-[100] shadow-2xl">
         <div class="flex items-center gap-4">
@@ -51,7 +49,7 @@
             <div id="card-co2" class="bg-white rounded-[2rem] p-6 shadow-sm border-b-4 border-emerald-500 cursor-default">
                 <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">CO2 (AQI)</p>
                 <div class="flex items-baseline gap-1"><span id="val-co2" class="text-3xl font-black">----</span><span class="text-sm font-bold opacity-40">ppm</span></div>
-                <p id="label-co2" class="text-[9px] font-bold mt-2 uppercase text-slate-300">AQI-Status</p>
+                <p id="label-co2" class="text-[9px] font-bold mt-2 uppercase text-slate-300 italic">Luft-Status</p>
             </div>
 
             <div onclick="switchMetric('tvoc')" id="card-tvoc" class="metric-card bg-white rounded-[2rem] p-6 shadow-sm">
@@ -68,11 +66,11 @@
             </div>
 
             <div class="bg-white rounded-[3rem] p-10 shadow-sm border border-slate-200 text-center flex flex-col items-center">
-                <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-8 self-start">CO2 Lüftungs-Index</h3>
+                <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-8 self-start text-left">Air Quality Index</h3>
                 <div id="aqi-gauge" class="w-full"></div>
                 <div class="mt-8 space-y-2">
                     <p id="aqi-status" class="text-lg font-black text-slate-800 uppercase italic">Prüfen...</p>
-                    <p id="aqi-advice" class="text-[10px] text-slate-400 font-bold uppercase tracking-widest px-4">Warten auf Sensordaten...</p>
+                    <p id="aqi-advice" class="text-[10px] text-slate-400 font-bold uppercase tracking-widest px-4 leading-relaxed">Bitte lüften, wenn die Anzeige gelb oder rot wird.</p>
                 </div>
             </div>
         </div>
@@ -94,11 +92,10 @@
         const deviceId = urlParams.get('id');
         let mainChart, aqiGauge;
 
-        // Chart Initialisierung
         function initCharts() {
-            // 3-in-1 Unified Chart
+            // Unified Chart mit festen Namen für Hintergrund-Zeichnung
             mainChart = new ApexCharts(document.querySelector("#unified-chart"), {
-                chart: { type: 'area', height: 450, toolbar: { show: false }, animations: { enabled: true, easing: 'linear', speed: 800 }, zoom: { enabled: false } },
+                chart: { type: 'area', height: 450, toolbar: { show: false }, animations: { enabled: true, speed: 800 }, zoom: { enabled: false } },
                 series: [
                     { name: 'temp', data: [] },
                     { name: 'hum', data: [] },
@@ -106,16 +103,15 @@
                 ],
                 colors: ['#f97316', '#3b82f6', '#a855f7'],
                 stroke: { curve: 'smooth', width: 4 },
-                xaxis: { type: 'datetime', labels: { style: { colors: '#94a3b8' } } },
-                yaxis: { labels: { style: { colors: '#94a3b8' } } },
+                xaxis: { type: 'datetime' },
                 legend: { show: false },
                 grid: { borderColor: '#f1f5f9' }
             });
             mainChart.render().then(() => switchMetric('temp'));
 
-            // AQI Gauge
+            // AQI Gauge - FARBEN UMGEKEHRT (Grün = Niedrig, Rot = Hoch)
             aqiGauge = new ApexCharts(document.querySelector("#aqi-gauge"), {
-                chart: { type: 'radialBar', height: 350 },
+                chart: { type: 'radialBar', height: 400 },
                 series: [0],
                 plotOptions: {
                     radialBar: {
@@ -130,13 +126,15 @@
                 fill: {
                     type: 'gradient',
                     gradient: {
-                        stops: [0, 25, 50, 75, 100],
+                        shade: 'dark', type: 'horizontal',
+                        gradientToColors: ['#9f1239'], // Endet bei Dunkelrot
+                        stops: [0, 30, 50, 80, 100],
                         colorStops: [
-                            { offset: 0, color: "#065f46", opacity: 1 },
-                            { offset: 30, color: "#10b981", opacity: 1 },
-                            { offset: 55, color: "#f59e0b", opacity: 1 },
-                            { offset: 80, color: "#ef4444", opacity: 1 },
-                            { offset: 100, color: "#9f1239", opacity: 1 }
+                            { offset: 0, color: "#065f46", opacity: 1 },  // Dunkelgrün (Exzellent)
+                            { offset: 30, color: "#10b981", opacity: 1 }, // Grün (Gut)
+                            { offset: 55, color: "#f59e0b", opacity: 1 }, // Gelb (Lüften empfohlen)
+                            { offset: 80, color: "#ef4444", opacity: 1 }, // Rot (Lüften!)
+                            { offset: 100, color: "#9f1239", opacity: 1 } // Dunkelrot (Kritisch)
                         ]
                     }
                 }
@@ -144,7 +142,6 @@
             aqiGauge.render();
         }
 
-        // Umschalten & Statusfarben
         function switchMetric(m) {
             const labels = { temp: 'Temperatur Analyse', hum: 'Luftfeuchtigkeit Analyse', tvoc: 'TVOC Belastung' };
             const colors = { temp: '#f97316', hum: '#3b82f6', tvoc: '#a855f7' };
@@ -153,7 +150,7 @@
             document.getElementById(`card-${m}`)?.classList.add('active');
             document.getElementById('chart-title').innerText = labels[m];
 
-            // Nur die gewählte Serie im Graph zeigen
+            // WICHTIG: ApexCharts show/hide per Name
             ['temp', 'hum', 'tvoc'].forEach(key => {
                 if (key === m) mainChart.showSeries(key); else mainChart.hideSeries(key);
             });
@@ -162,21 +159,17 @@
 
         function updateUI(metric, val) {
             const el = document.getElementById(`val-${metric}`);
-            if (!el) return;
-            el.innerText = val;
+            if (el) el.innerText = val;
 
-            const card = document.getElementById(`card-${metric}`);
             if (metric === 'co2') {
                 const status = document.getElementById('aqi-status');
                 const advice = document.getElementById('aqi-advice');
-                if (val < 600) { status.innerText = "Exzellent"; advice.innerText = "Perfekte Luftqualität."; card.style.backgroundColor = "#ecfdf5"; }
-                else if (val < 1000) { status.innerText = "Gut"; advice.innerText = "Alles okay."; card.style.backgroundColor = "#f0fdf4"; }
-                else if (val < 1500) { status.innerText = "Lüften"; advice.innerText = "Frischluft empfohlen."; card.style.backgroundColor = "#fffbeb"; }
-                else { status.innerText = "Kritisch"; advice.innerText = "SOFORT LÜFTEN!"; card.style.backgroundColor = "#fef2f2"; }
+                const card = document.getElementById('card-co2');
+                if (val < 600) { status.innerText = "Exzellent"; advice.innerText = "Perfekte Luft."; card.style.backgroundColor = "#ecfdf5"; }
+                else if (val < 1000) { status.innerText = "Gut"; advice.innerText = "Frische Luft."; card.style.backgroundColor = "#f0fdf4"; }
+                else if (val < 1500) { status.innerText = "Mäßig"; advice.innerText = "Bitte Stoßlüften."; card.style.backgroundColor = "#fffbeb"; }
+                else { status.innerText = "Schlecht"; advice.innerText = "FENSTER AUF!"; card.style.backgroundColor = "#fef2f2"; }
                 aqiGauge.updateSeries([Math.min((val/2000)*100, 100)]);
-            } else {
-                // Sanfte Farbänderung für Temp/Hum
-                if (metric === 'temp') card.style.backgroundColor = val > 26 ? "#fef2f2" : (val < 19 ? "#eff6ff" : "#ffffff");
             }
         }
 
@@ -186,7 +179,8 @@
             if (data && data.length > 0) {
                 const last = data[data.length-1];
                 ['temp', 'hum', 'tvoc'].forEach(m => {
-                    mainChart.updateSeries([{ name: m, data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d[m] })) }], true);
+                    const points = data.map(d => ({ x: new Date(d.created_at).getTime(), y: d[m] }));
+                    mainChart.appendData([{ name: m, data: points }]);
                     updateUI(m, last[m]);
                 });
                 updateUI('co2', last.co2);
@@ -204,7 +198,7 @@
                 const ts = Date.now();
                 Object.keys(data).forEach(m => {
                     updateUI(m, data[m]);
-                    // Wichtig: Alle Serien im Hintergrund weiterschreiben!
+                    // HINTERGRUND-ZEICHNUNG: Schreibt in alle Serien gleichzeitig
                     if (['temp', 'hum', 'tvoc'].includes(m)) {
                         mainChart.appendData([{ name: m, data: [{ x: ts, y: data[m] }] }]);
                     }
