@@ -93,29 +93,37 @@
         let mainChart, aqiGauge;
 
         function initCharts() {
-            // Unified Chart mit vordefinierten Farben für jede Serie
             mainChart = new ApexCharts(document.querySelector("#unified-chart"), {
-                chart: { id: 'main-iot', type: 'area', height: 450, toolbar: { show: false }, animations: { enabled: true, easing: 'linear', speed: 800 }, zoom: { enabled: false } },
+                chart: { 
+                    id: 'main-iot', 
+                    type: 'area', 
+                    height: 450, 
+                    toolbar: { show: false }, 
+                    animations: { enabled: true, easing: 'linear', speed: 800 },
+                    zoom: { enabled: false }
+                },
                 series: [
                     { name: 'temp', data: [] },
                     { name: 'hum', data: [] },
                     { name: 'tvoc', data: [] }
                 ],
-                colors: ['#f97316', '#3b82f6', '#a855f7'], // Orange=Temp, Blau=Hum, Lila=TVOC
+                colors: ['#f97316', '#3b82f6', '#a855f7'],
                 stroke: { curve: 'smooth', width: 4 },
                 xaxis: { type: 'datetime' },
-                yaxis: { decimalsInFloat: 1 },
+                yaxis: { 
+                    decimalsInFloat: 1,
+                    forceNiceScale: true, // Erzwingt eine "schöne" Skalierung basierend auf sichtbaren Werten
+                    labels: { style: { fontWeight: 600 } }
+                },
                 legend: { show: false },
                 grid: { borderColor: '#f1f5f9' },
                 fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05 } }
             });
             
             mainChart.render().then(() => {
-                // Initial nur Temperatur zeigen
                 switchMetric('temp');
             });
 
-            // AQI Gauge - Grün (niedrig) bis Rot (hoch)
             aqiGauge = new ApexCharts(document.querySelector("#aqi-gauge"), {
                 chart: { type: 'radialBar', height: 400 },
                 series: [0],
@@ -134,12 +142,12 @@
                     gradient: {
                         shade: 'dark',
                         type: 'horizontal',
-                        gradientToColors: ['#ef4444'], // Endet bei Rot
+                        gradientToColors: ['#ef4444'], 
                         stops: [0, 50, 100],
                         colorStops: [
-                            { offset: 0, color: "#10b981", opacity: 1 }, // Grün (GUT)
-                            { offset: 50, color: "#f59e0b", opacity: 1 }, // Gelb (MITTEL)
-                            { offset: 100, color: "#ef4444", opacity: 1 } // Rot (SCHLECHT)
+                            { offset: 0, color: "#10b981", opacity: 1 }, 
+                            { offset: 50, color: "#f59e0b", opacity: 1 }, 
+                            { offset: 100, color: "#ef4444", opacity: 1 } 
                         ]
                     }
                 }
@@ -149,33 +157,36 @@
 
         function switchMetric(m) {
             const labels = { temp: 'Temperatur Analyse', hum: 'Luftfeuchtigkeit Analyse', tvoc: 'TVOC Belastung' };
+            const units = { temp: '°C', hum: '%', tvoc: 'ppb' };
             
-            // UI Update
             document.querySelectorAll('.metric-card').forEach(c => c.classList.remove('active'));
             document.getElementById(`card-${m}`)?.classList.add('active');
             document.getElementById('chart-title').innerText = labels[m];
 
-            // Sichtbarkeit steuern, OHNE die Daten zu löschen
-            // Wir nutzen toggleSeries von ApexCharts
+            // 1. Sichtbarkeit umschalten
             ['temp', 'hum', 'tvoc'].forEach(name => {
-                if (name === m) {
-                    mainChart.showSeries(name);
-                } else {
-                    mainChart.hideSeries(name);
+                if (name === m) mainChart.showSeries(name); else mainChart.hideSeries(name);
+            });
+
+            // 2. Y-Achse dynamisch an den neuen Wertetyp anpassen
+            mainChart.updateOptions({
+                yaxis: {
+                    title: { text: units[m], style: { color: '#64748b', fontWeight: 900 } },
+                    labels: { formatter: (val) => val.toFixed(1) + " " + units[m] },
+                    forceNiceScale: true
                 }
             });
         }
 
         function updateUI(metric, val) {
             const el = document.getElementById(`val-${metric}`);
-            if (el) el.innerText = val;
+            if (el) el.innerText = (metric === 'temp') ? parseFloat(val).toFixed(1) : Math.round(val);
 
             if (metric === 'co2') {
                 const status = document.getElementById('aqi-status');
                 const advice = document.getElementById('aqi-advice');
                 const card = document.getElementById('card-co2');
                 
-                // CO2 Logik: Niedrig = Grün = Gut
                 if (val < 600) { 
                     status.innerText = "Exzellent"; advice.innerText = "Die Luft ist perfekt."; 
                     card.style.borderBottomColor = "#059669";
@@ -189,8 +200,6 @@
                     status.innerText = "Kritisch"; advice.innerText = "Sofort Fenster öffnen!"; 
                     card.style.borderBottomColor = "#ef4444";
                 }
-                
-                // Gauge Update (0-2000 ppm Skala)
                 aqiGauge.updateSeries([Math.min((val/2000)*100, 100)]);
             }
         }
@@ -205,8 +214,6 @@
 
             if (data && data.length > 0) {
                 const last = data[data.length-1];
-                
-                // Daten für alle Serien gleichzeitig vorbereiten
                 const tempPoints = data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.temp }));
                 const humPoints = data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.hum }));
                 const tvocPoints = data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.tvoc }));
@@ -217,7 +224,6 @@
                     { name: 'tvoc', data: tvocPoints }
                 ]);
 
-                // UI Werte setzen
                 updateUI('temp', last.temp);
                 updateUI('hum', last.hum);
                 updateUI('tvoc', last.tvoc);
@@ -237,28 +243,18 @@
                 try {
                     const data = JSON.parse(msg.toString());
                     const ts = Date.now();
-
-                    // Alle Metriken im Hintergrund in den Chart pushen
-                    const chartUpdates = [];
+                    const updates = [];
                     
-                    if (data.temp !== undefined) chartUpdates.push({ name: 'temp', data: [{ x: ts, y: data.temp }] });
-                    if (data.hum !== undefined) chartUpdates.push({ name: 'hum', data: [{ x: ts, y: data.hum }] });
-                    if (data.tvoc !== undefined) chartUpdates.push({ name: 'tvoc', data: [{ x: ts, y: data.tvoc }] });
+                    if (data.temp !== undefined) updates.push({ name: 'temp', data: [{ x: ts, y: data.temp }] });
+                    if (data.hum !== undefined) updates.push({ name: 'hum', data: [{ x: ts, y: data.hum }] });
+                    if (data.tvoc !== undefined) updates.push({ name: 'tvoc', data: [{ x: ts, y: data.tvoc }] });
 
-                    if (chartUpdates.length > 0) {
-                        mainChart.appendData(chartUpdates);
-                    }
-
-                    // UI Zahlenwerte & Gauge aktualisieren
+                    if (updates.length > 0) mainChart.appendData(updates);
                     Object.keys(data).forEach(m => updateUI(m, data[m]));
-
-                } catch (e) {
-                    console.error("MQTT Parsing Error", e);
-                }
+                } catch (e) { console.error("MQTT Error", e); }
             });
         }
 
-        // Bootstrapping
         initCharts();
         if (deviceId) {
             document.getElementById('status-badge').innerText = "FETCHING DATA...";
