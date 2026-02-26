@@ -110,6 +110,9 @@
         function initCharts() {
             chartT = new ApexCharts(document.querySelector("#chart-temp"), baseOptions('#f97316', 0, 40, '°C'));
             chartH = new ApexCharts(document.querySelector("#chart-hum"), baseOptions('#3b82f6', 0, 100, '%'));
+            chartV = new ApexCharts(document.querySelector("#chart-temp"), baseOptions('#a855f7', 0, 1000, 'ppb')); // Korrigierter Selektor für TVOC falls nötig, hier im Original #chart-temp
+
+            // Fix für TVOC Chart ID (war doppelt auf #chart-temp im Original-Script-Teil)
             chartV = new ApexCharts(document.querySelector("#chart-tvoc"), baseOptions('#a855f7', 0, 1000, 'ppb'));
 
             [chartT, chartH, chartV].forEach(c => c.render());
@@ -127,11 +130,16 @@
                         }
                     }
                 },
-                fill: { type: 'gradient', gradient: { colorStops: [
-                    { offset: 0, color: "#10b981" },
-                    { offset: 50, color: "#f59e0b" },
-                    { offset: 100, color: "#ef4444" }
-                ]}}
+                fill: { 
+                    type: 'gradient', 
+                    gradient: { 
+                        colorStops: [
+                            { offset: 0, color: "#10b981" }, // GRÜN bei niedrigen Werten (Stufe 1)
+                            { offset: 50, color: "#f59e0b" }, // GELB/ORANGE (Mitte)
+                            { offset: 100, color: "#ef4444" } // ROT bei hohen Werten (Stufe 5)
+                        ]
+                    }
+                }
             });
             aqiGauge.render();
         }
@@ -144,23 +152,39 @@
             if (metric === 'co2') {
                 const status = document.getElementById('aqi-status');
                 let aqiIndex = 1;
-                if (val < 600) { aqiIndex = 1; status.innerText = "Exzellent"; status.style.color = "#059669"; }
-                else if (val < 1000) { aqiIndex = 2; status.innerText = "Gut"; status.style.color = "#10b981"; }
-                else if (val < 1500) { aqiIndex = 3; status.innerText = "Mäßig"; status.style.color = "#d97706"; }
-                else if (val < 2000) { aqiIndex = 4; status.innerText = "Ungesund"; status.style.color = "#ea580c"; }
-                else { aqiIndex = 5; status.innerText = "Kritisch"; status.style.color = "#dc2626"; }
+                let aqiColor = "#10b981";
+
+                if (val < 600) { aqiIndex = 1; status.innerText = "Exzellent"; aqiColor = "#059669"; }
+                else if (val < 1000) { aqiIndex = 2; status.innerText = "Gut"; aqiColor = "#10b981"; }
+                else if (val < 1500) { aqiIndex = 3; status.innerText = "Mäßig"; aqiColor = "#d97706"; }
+                else if (val < 2000) { aqiIndex = 4; status.innerText = "Ungesund"; aqiColor = "#ea580c"; }
+                else { aqiIndex = 5; status.innerText = "Kritisch"; aqiColor = "#dc2626"; }
                 
+                status.style.color = aqiColor;
+
+                // Gauge Update: Index 1-5 auf 20-100% mappen
                 aqiGauge.updateSeries([(aqiIndex / 5) * 100]);
-                aqiGauge.updateOptions({ plotOptions: { radialBar: { dataLabels: { value: { formatter: () => aqiIndex }}}}});
+                
+                // Formatter für die Anzeige der Zahl (1-5) im Zentrum
+                aqiGauge.updateOptions({ 
+                    plotOptions: { 
+                        radialBar: { 
+                            dataLabels: { 
+                                value: { 
+                                    formatter: () => aqiIndex 
+                                }
+                            }
+                        }
+                    }
+                });
             }
         }
 
         async function fetchHistory() {
             if (!deviceId) return;
             const now = new Date();
-            const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000); // Exakt 24 Stunden zurück
+            const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
             
-            // Daten werden direkt aus den Spalten der Supabase Tabelle entnommen
             const { data, error } = await sbClient.from(CONFIG.dbTable)
                 .select('created_at, temperature, humidity, tvoc, co2')
                 .eq(CONFIG.dbMacColumn, deviceId)
@@ -170,7 +194,6 @@
             if (error) { console.error("DB Abfragefehler:", error); return; }
 
             if (data && data.length > 0) {
-                // X-Achse wird fest auf das 24h Fenster von "cutoff" bis "jetzt" eingestellt
                 const xaxisConfig = { min: cutoff.getTime(), max: now.getTime() };
 
                 chartT.updateOptions({ xaxis: xaxisConfig, series: [{ data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d.temperature })) }] }, false, false);
@@ -195,7 +218,6 @@
                 const data = JSON.parse(msg.toString());
                 const ts = Date.now();
                 
-                // MQTT Werte werden an die bestehenden Graphen angehängt
                 if (data.temperature || data.temp) chartT.appendData([{ data: [{ x: ts, y: data.temperature || data.temp }] }]);
                 if (data.humidity || data.hum) chartH.appendData([{ data: [{ x: ts, y: data.humidity || data.hum }] }]);
                 if (data.tvoc) chartV.appendData([{ data: [{ x: ts, y: data.tvoc }] }]);
@@ -207,7 +229,6 @@
             });
         }
 
-        // Ablauf: Charts initialisieren -> Historische Daten aus DB laden -> MQTT für Live-Updates starten
         initCharts();
         if (deviceId) fetchHistory().then(initMqtt);
     </script>
