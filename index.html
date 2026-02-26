@@ -15,6 +15,8 @@
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
         .metric-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border: 2px solid transparent; cursor: pointer; }
         .metric-card.active { border-color: #3b82f6; background-color: #eff6ff; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.1); }
+        .time-btn { transition: all 0.2s; }
+        .time-btn.active { background-color: #1e293b; color: white; }
         .live-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; animation: pulse 2s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
     </style>
@@ -61,7 +63,15 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div class="lg:col-span-2 bg-white rounded-[3rem] p-10 shadow-sm border border-slate-200">
-                <h3 id="chart-title" class="text-xl font-black text-slate-800 mb-8 italic uppercase">Temperatur Analyse</h3>
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                    <h3 id="chart-title" class="text-xl font-black text-slate-800 italic uppercase">Temperatur Analyse</h3>
+                    
+                    <div class="flex bg-slate-100 p-1 rounded-xl">
+                        <button onclick="changeTimeRange(1)" id="btn-1d" class="time-btn active px-4 py-2 text-[10px] font-bold uppercase rounded-lg">1 Tag</button>
+                        <button onclick="changeTimeRange(5)" id="btn-5d" class="time-btn px-4 py-2 text-[10px] font-bold uppercase rounded-lg">5 Tage</button>
+                        <button onclick="changeTimeRange(30)" id="btn-30d" class="time-btn px-4 py-2 text-[10px] font-bold uppercase rounded-lg">1 Monat</button>
+                    </div>
+                </div>
                 <div id="unified-chart" class="w-full h-[450px]"></div>
             </div>
 
@@ -91,27 +101,23 @@
         const urlParams = new URLSearchParams(window.location.search);
         const deviceId = urlParams.get('id');
         let mainChart, aqiGauge;
+        let currentMetric = 'temp';
+        let currentDays = 1;
 
         function initCharts() {
-            // Main Chart Setup
             mainChart = new ApexCharts(document.querySelector("#unified-chart"), {
                 chart: { id: 'main-iot', type: 'area', height: 450, toolbar: { show: false }, animations: { enabled: true, easing: 'linear', speed: 800 }, zoom: { enabled: false } },
-                series: [
-                    { name: 'temp', data: [] },
-                    { name: 'hum', data: [] },
-                    { name: 'tvoc', data: [] }
-                ],
+                series: [{ name: 'temp', data: [] }, { name: 'hum', data: [] }, { name: 'tvoc', data: [] }],
                 colors: ['#f97316', '#3b82f6', '#a855f7'],
                 stroke: { curve: 'smooth', width: 4 },
-                xaxis: { type: 'datetime' },
-                yaxis: { forceNiceScale: true, decimalsInFloat: 1 },
+                xaxis: { type: 'datetime', labels: { datetimeUTC: false } },
+                yaxis: { min: 0, max: 40, tickAmount: 8 }, // Initial für Temp
                 legend: { show: false },
                 grid: { borderColor: '#f1f5f9' },
                 fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05 } }
             });
             mainChart.render().then(() => switchMetric('temp'));
 
-            // AQI Gauge - Umgekehrt: Niedrig = Grün, Hoch = Rot
             aqiGauge = new ApexCharts(document.querySelector("#aqi-gauge"), {
                 chart: { type: 'radialBar', height: 400 },
                 series: [0],
@@ -128,13 +134,11 @@
                 fill: {
                     type: 'gradient',
                     gradient: {
-                        shade: 'dark', type: 'horizontal',
-                        gradientToColors: ['#ef4444'], // Endet bei Rot
-                        stops: [0, 50, 100],
+                        shade: 'dark', type: 'horizontal', gradientToColors: ['#ef4444'], stops: [0, 50, 100],
                         colorStops: [
-                            { offset: 0, color: "#10b981", opacity: 1 }, // Grün
-                            { offset: 50, color: "#f59e0b", opacity: 1 }, // Gelb
-                            { offset: 100, color: "#ef4444", opacity: 1 } // Rot
+                            { offset: 0, color: "#10b981", opacity: 1 },
+                            { offset: 50, color: "#f59e0b", opacity: 1 },
+                            { offset: 100, color: "#ef4444", opacity: 1 }
                         ]
                     }
                 }
@@ -143,14 +147,15 @@
         }
 
         function switchMetric(m) {
+            currentMetric = m;
             const labels = { temp: 'Temperatur Analyse', hum: 'Luftfeuchtigkeit Analyse', tvoc: 'TVOC Belastung' };
             const units = { temp: '°C', hum: '%', tvoc: 'ppb' };
             
-            // Y-Achsen Limits konfigurieren
+            // FIXIERTE Y-ACHSEN
             const limits = {
-                temp: { min: undefined, max: undefined, forceNiceScale: true },
-                hum: { min: 0, max: 100, forceNiceScale: false }, // Fest 0-100%
-                tvoc: { min: 0, max: undefined, forceNiceScale: true }
+                temp: { min: 0, max: 40, tickAmount: 8 },
+                hum: { min: 0, max: 100, tickAmount: 10 },
+                tvoc: { min: 0, max: 1000, tickAmount: 10 }
             };
             const config = limits[m];
 
@@ -158,24 +163,31 @@
             document.getElementById(`card-${m}`)?.classList.add('active');
             document.getElementById('chart-title').innerText = labels[m];
 
-            // Sichtbarkeit steuern
             ['temp', 'hum', 'tvoc'].forEach(name => {
                 if (name === m) mainChart.showSeries(name); else mainChart.hideSeries(name);
             });
 
-            // Y-Achse hart aktualisieren
             mainChart.updateOptions({
                 yaxis: {
                     min: config.min,
                     max: config.max,
-                    forceNiceScale: config.forceNiceScale,
+                    tickAmount: config.tickAmount,
                     title: { text: units[m], style: { color: '#64748b', fontWeight: 900 } },
                     labels: { 
-                        formatter: (val) => val ? val.toFixed(m === 'tvoc' ? 0 : 1) + " " + units[m] : val,
+                        formatter: (val) => val.toFixed(m === 'tvoc' ? 0 : 1) + " " + units[m],
                         style: { fontWeight: 600 }
                     }
                 }
             });
+        }
+
+        function changeTimeRange(days) {
+            currentDays = days;
+            document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+            const btnId = days === 1 ? 'btn-1d' : (days === 5 ? 'btn-5d' : 'btn-30d');
+            document.getElementById(btnId).classList.add('active');
+            
+            fetchHistory();
         }
 
         function updateUI(metric, val) {
@@ -186,7 +198,6 @@
                 const status = document.getElementById('aqi-status');
                 const advice = document.getElementById('aqi-advice');
                 const card = document.getElementById('card-co2');
-                
                 if (val < 600) { 
                     status.innerText = "Exzellent"; advice.innerText = "Die Luft ist perfekt."; 
                     card.style.borderBottomColor = "#059669";
@@ -206,7 +217,20 @@
 
         async function fetchHistory() {
             if (!deviceId) return;
-            const { data } = await sbClient.from(CONFIG.dbTable).select('*').eq(CONFIG.dbMacColumn, deviceId).order('created_at', { ascending: true }).limit(100);
+            
+            // Zeitstempel berechnen
+            const timeLimit = new Date();
+            timeLimit.setDate(timeLimit.getDate() - currentDays);
+            const isoString = timeLimit.toISOString();
+
+            const { data, error } = await sbClient.from(CONFIG.dbTable)
+                .select('*')
+                .eq(CONFIG.dbMacColumn, deviceId)
+                .gte('created_at', isoString)
+                .order('created_at', { ascending: true });
+
+            if (error) { console.error("Supabase Error:", error); return; }
+
             if (data && data.length > 0) {
                 const last = data[data.length-1];
                 const seriesData = [
@@ -216,6 +240,9 @@
                 ];
                 mainChart.updateSeries(seriesData);
                 ['temp', 'hum', 'tvoc', 'co2'].forEach(m => updateUI(m, last[m]));
+            } else {
+                // Falls keine Daten im Zeitraum vorhanden sind, Chart leeren
+                mainChart.updateSeries([{ name: 'temp', data: [] }, { name: 'hum', data: [] }, { name: 'tvoc', data: [] }]);
             }
         }
 
