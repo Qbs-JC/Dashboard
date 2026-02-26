@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QBS Dynamic Analytics | Enterprise IoT</title>
+    <title>QBS Unified Analytics | Enterprise IoT</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
@@ -12,98 +12,80 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
 
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f1f5f9; }
-        .active-metric-card { border-color: #3b82f6 !important; background-color: #eff6ff !important; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.1) !important; }
-        .chart-layer { display: none; transition: all 0.3s ease; }
-        .chart-layer.active { display: block; }
-        .live-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
+        .metric-card { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid #e2e8f0; cursor: pointer; }
+        .metric-card.active { border-color: #2563eb; background-color: #f0f7ff; ring: 2px; ring-color: #3b82f6; transform: translateY(-2px); }
+        .live-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
     </style>
 </head>
 <body class="text-slate-900">
 
     <nav class="bg-slate-900 text-white px-8 py-5 flex justify-between items-center sticky top-0 z-[100] shadow-xl">
         <div class="flex items-center gap-4">
-            <div class="p-2.5 bg-blue-600 rounded-2xl shadow-lg shadow-blue-500/20">
-                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            <div class="p-2 bg-blue-600 rounded-xl shadow-lg">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
             </div>
             <div>
-                <h1 class="text-xl font-bold tracking-tight uppercase tracking-widest">QBS Global Dashboard</h1>
-                <p class="text-[9px] text-blue-400 font-bold uppercase tracking-[0.4em]">Real-Time Infrastructure Monitoring</p>
+                <h1 class="text-xl font-bold tracking-tight uppercase">QBS Unified Control</h1>
+                <p class="text-[9px] text-blue-400 font-bold uppercase tracking-[0.4em]">Global Sensor Intelligence</p>
             </div>
         </div>
-        
-        <div class="flex items-center gap-6">
-            <div id="status-badge" class="bg-slate-800 border border-slate-700 px-4 py-2 rounded-2xl text-[10px] font-black text-slate-400">
-                <span class="live-dot bg-slate-500"></span> SYNCING WITH CLOUD...
-            </div>
+        <div id="status-badge" class="flex items-center gap-3 bg-slate-800 border border-slate-700 px-4 py-2 rounded-2xl text-[10px] font-black text-slate-400">
+            <span class="live-dot bg-slate-500"></span> CONNECTING...
         </div>
     </nav>
 
     <main class="max-w-[1600px] mx-auto p-8 space-y-10">
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <button onclick="switchMetric('temp')" id="btn-temp" class="active-metric-card bg-white border border-slate-200 rounded-[2rem] p-6 text-left transition-all hover:border-blue-300">
-                <div class="flex justify-between items-center mb-3">
-                    <span class="p-2 bg-orange-100 text-orange-600 rounded-xl"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg></span>
-                    <span class="text-[10px] font-black text-slate-300 uppercase italic">Live-Feed</span>
-                </div>
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Temperatur</p>
-                <div class="flex items-baseline gap-1 mt-1">
+            <div onclick="toggleMetric('temp')" id="card-temp" class="metric-card active bg-white rounded-[2rem] p-6 shadow-sm">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Temperatur</p>
+                <div class="flex items-baseline gap-1">
                     <span id="val-temp" class="text-3xl font-black text-slate-900">--.-</span><span class="text-sm text-slate-400 font-bold">°C</span>
                 </div>
-            </button>
+                <div class="mt-4 h-1 w-full bg-slate-100 rounded-full overflow-hidden"><div id="bar-temp" class="h-full bg-orange-500 transition-all duration-1000" style="width: 0%"></div></div>
+            </div>
 
-            <button onclick="switchMetric('hum')" id="btn-hum" class="bg-white border border-slate-200 rounded-[2rem] p-6 text-left transition-all hover:border-blue-300">
-                <div class="flex justify-between items-center mb-3">
-                    <span class="p-2 bg-blue-100 text-blue-600 rounded-xl"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-14L4 7m8 4v10M4 7v10l8 4"/></svg></span>
-                    <span class="text-[10px] font-black text-slate-300 uppercase italic">Live-Feed</span>
-                </div>
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Feuchtigkeit</p>
-                <div class="flex items-baseline gap-1 mt-1">
+            <div onclick="toggleMetric('hum')" id="card-hum" class="metric-card bg-white rounded-[2rem] p-6 shadow-sm">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Feuchtigkeit</p>
+                <div class="flex items-baseline gap-1">
                     <span id="val-hum" class="text-3xl font-black text-slate-900">--</span><span class="text-sm text-slate-400 font-bold">%</span>
                 </div>
-            </button>
+                <div class="mt-4 h-1 w-full bg-slate-100 rounded-full overflow-hidden"><div id="bar-hum" class="h-full bg-blue-500 transition-all duration-1000" style="width: 0%"></div></div>
+            </div>
 
-            <button onclick="switchMetric('co2')" id="btn-co2" class="bg-white border border-slate-200 rounded-[2rem] p-6 text-left transition-all hover:border-blue-300">
-                <div class="flex justify-between items-center mb-3">
-                    <span class="p-2 bg-emerald-100 text-emerald-600 rounded-xl"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></span>
-                    <span class="text-[10px] font-black text-slate-300 uppercase italic">Live-Feed</span>
-                </div>
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">CO2 Gehalt</p>
-                <div class="flex items-baseline gap-1 mt-1">
+            <div onclick="toggleMetric('co2')" id="card-co2" class="metric-card bg-white rounded-[2rem] p-6 shadow-sm">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">CO2 Level</p>
+                <div class="flex items-baseline gap-1">
                     <span id="val-co2" class="text-3xl font-black text-slate-900">----</span><span class="text-sm text-slate-400 font-bold">ppm</span>
                 </div>
-            </button>
+                <div class="mt-4 h-1 w-full bg-slate-100 rounded-full overflow-hidden"><div id="bar-co2" class="h-full bg-emerald-500 transition-all duration-1000" style="width: 0%"></div></div>
+            </div>
 
-            <button onclick="switchMetric('tvoc')" id="btn-tvoc" class="bg-white border border-slate-200 rounded-[2rem] p-6 text-left transition-all hover:border-blue-300">
-                <div class="flex justify-between items-center mb-3">
-                    <span class="p-2 bg-purple-100 text-purple-600 rounded-xl"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/></svg></span>
-                    <span class="text-[10px] font-black text-slate-300 uppercase italic">Live-Feed</span>
-                </div>
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">TVOC</p>
-                <div class="flex items-baseline gap-1 mt-1">
+            <div onclick="toggleMetric('tvoc')" id="card-tvoc" class="metric-card bg-white rounded-[2rem] p-6 shadow-sm">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">TVOC Index</p>
+                <div class="flex items-baseline gap-1">
                     <span id="val-tvoc" class="text-3xl font-black text-slate-900">----</span><span class="text-sm text-slate-400 font-bold">ppb</span>
                 </div>
-            </button>
+                <div class="mt-4 h-1 w-full bg-slate-100 rounded-full overflow-hidden"><div id="bar-tvoc" class="h-full bg-purple-500 transition-all duration-1000" style="width: 0%"></div></div>
+            </div>
         </div>
 
-        <div class="bg-white border border-slate-200 rounded-[3rem] p-10 shadow-sm relative">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div class="bg-white border border-slate-200 rounded-[3rem] p-10 shadow-sm">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
                 <div>
-                    <h3 class="text-2xl font-black text-slate-800 tracking-tight italic" id="main-chart-title uppercase">Temperatur Analyse</h3>
-                    <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">Geräte-ID: <span id="info-id" class="text-blue-600">---</span></p>
+                    <h3 id="display-title" class="text-2xl font-black text-slate-800 tracking-tight italic uppercase">Temperatur Analyse</h3>
+                    <p class="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Global Data Feed: <span id="info-id" class="text-blue-600">---</span></p>
                 </div>
-                <div class="flex bg-slate-100 p-1.5 rounded-2xl">
-                    <button onclick="changeInterval(1)" id="i-1" class="px-5 py-2 text-[10px] font-black rounded-xl transition-all bg-slate-900 text-white shadow-lg">1 TAG</button>
-                    <button onclick="changeInterval(5)" id="i-5" class="px-5 py-2 text-[10px] font-black rounded-xl transition-all text-slate-400 hover:text-slate-900">5 TAGE</button>
-                    <button onclick="changeInterval(30)" id="i-30" class="px-5 py-2 text-[10px] font-black rounded-xl transition-all text-slate-400 hover:text-slate-900">30 TAGE</button>
+                <div class="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                    <button onclick="updateInterval(1)" id="i-1" class="px-6 py-2 text-[10px] font-black rounded-xl transition-all bg-slate-900 text-white shadow-lg">1 TAG</button>
+                    <button onclick="updateInterval(5)" id="i-5" class="px-6 py-2 text-[10px] font-black rounded-xl transition-all text-slate-500 hover:text-slate-900">5 TAGE</button>
+                    <button onclick="updateInterval(30)" id="i-30" class="px-6 py-2 text-[10px] font-black rounded-xl transition-all text-slate-500 hover:text-slate-900">30 TAGE</button>
                 </div>
             </div>
 
-            <div id="layer-temp" class="chart-layer active"><div id="chart-temp"></div></div>
-            <div id="layer-hum" class="chart-layer"><div id="chart-hum"></div></div>
-            <div id="layer-co2" class="chart-layer"><div id="chart-co2"></div></div>
-            <div id="layer-tvoc" class="chart-layer"><div id="chart-tvoc"></div></div>
+            <div id="unified-chart" class="w-full h-[500px]"></div>
         </div>
     </main>
 
@@ -118,41 +100,87 @@
             mqttPass: 'web_password123'
         };
 
-        const METRICS = {
-            temp: { label: 'Temperatur', color: '#f97316', unit: '°C' },
-            hum: { label: 'Feuchtigkeit', color: '#3b82f6', unit: '%' },
-            co2: { label: 'CO2 Gehalt', color: '#10b981', unit: 'ppm' },
-            tvoc: { label: 'TVOC Index', color: '#a855f7', unit: 'ppb' }
+        const METRICS_MAP = {
+            temp: { label: 'Temperatur', color: '#f97316', unit: '°C', max: 50 },
+            hum: { label: 'Feuchtigkeit', color: '#3b82f6', unit: '%', max: 100 },
+            co2: { label: 'CO2 Gehalt', color: '#10b981', unit: 'ppm', max: 2000 },
+            tvoc: { label: 'TVOC Index', color: '#a855f7', unit: 'ppb', max: 1000 }
         };
 
-        let currentInterval = 1;
         let activeMetric = 'temp';
-        const charts = {};
+        let currentInterval = 1;
+        let chart;
+        
         const urlParams = new URLSearchParams(window.location.search);
         const deviceId = urlParams.get('id');
         document.getElementById('info-id').innerText = deviceId || '---';
 
         const sbClient = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
 
-        // Alle 4 Graphen initialisieren
-        function initCharts() {
-            Object.keys(METRICS).forEach(m => {
-                const options = {
-                    chart: { type: 'area', height: 450, toolbar: { show: false }, animations: { enabled: true, easing: 'linear', speed: 800 }, zoom: { enabled: false } },
-                    colors: [METRICS[m].color],
-                    stroke: { curve: 'smooth', width: 4 },
-                    fill: { type: 'gradient', gradient: { opacityFrom: 0.4, opacityTo: 0.05 } },
-                    series: [{ name: METRICS[m].label, data: [] }],
-                    xaxis: { type: 'datetime', labels: { style: { colors: '#94a3b8', fontWeight: 600 } } },
-                    yaxis: { labels: { style: { colors: '#94a3b8', fontWeight: 600 } } },
-                    grid: { borderColor: '#f1f5f9', strokeDashArray: 5 }
-                };
-                charts[m] = new ApexCharts(document.querySelector(`#chart-${m}`), options);
-                charts[m].render();
+        // 1. Initialisiere EINEN Graphen mit VIER Datenreihen
+        function initUnifiedChart() {
+            const options = {
+                chart: { 
+                    id: 'main-iot-chart',
+                    type: 'area', 
+                    height: 500, 
+                    toolbar: { show: false }, 
+                    animations: { enabled: true, easing: 'linear', speed: 800 },
+                    zoom: { enabled: false }
+                },
+                // Alle 4 Metriken als versteckte Series anlegen
+                series: [
+                    { name: 'temp', data: [] },
+                    { name: 'hum', data: [] },
+                    { name: 'co2', data: [] },
+                    { name: 'tvoc', data: [] }
+                ],
+                colors: ['#f97316', '#3b82f6', '#10b981', '#a855f7'],
+                stroke: { curve: 'smooth', width: 4 },
+                fill: { type: 'gradient', gradient: { opacityFrom: 0.4, opacityTo: 0.05 } },
+                dataLabels: { enabled: false },
+                xaxis: { type: 'datetime', labels: { style: { colors: '#94a3b8', fontWeight: 600 } } },
+                yaxis: { labels: { style: { colors: '#94a3b8', fontWeight: 600 } } },
+                grid: { borderColor: '#f1f5f9', strokeDashArray: 5 },
+                legend: { show: false } // Wir steuern die Legende über unsere Karten
+            };
+
+            chart = new ApexCharts(document.querySelector("#unified-chart"), options);
+            chart.render().then(() => {
+                // Initial nur Temperatur zeigen, andere verstecken
+                toggleMetric('temp');
             });
         }
 
-        async function updateData() {
+        // 2. Umschalten ohne Datenverlust
+        function toggleMetric(metric) {
+            activeMetric = metric;
+            
+            // UI Update
+            Object.keys(METRICS_MAP).forEach(m => {
+                document.getElementById(`card-${m}`).classList.remove('active');
+            });
+            document.getElementById(`card-${metric}`).classList.add('active');
+            document.getElementById('display-title').innerText = `${METRICS_MAP[metric].label} Analyse`;
+
+            // Graph Update: Nur die gewählte Serie zeigen, andere ausblenden
+            // ApexCharts toggleSeries() sorgt dafür, dass die Daten im Hintergrund erhalten bleiben
+            Object.keys(METRICS_MAP).forEach(m => {
+                if (m === metric) {
+                    chart.showSeries(m);
+                } else {
+                    chart.hideSeries(m);
+                }
+            });
+
+            // Y-Achse an Farbe der Metrik anpassen
+            chart.updateOptions({
+                colors: [METRICS_MAP[metric].color],
+                yaxis: { title: { text: METRICS_MAP[metric].unit } }
+            });
+        }
+
+        async function fetchHistory() {
             if (!deviceId) return;
             const pastDate = new Date(Date.now() - (currentInterval * 24 * 60 * 60 * 1000));
             
@@ -164,62 +192,70 @@
                 .order('created_at', { ascending: true });
 
             if (!error && data) {
-                Object.keys(METRICS).forEach(m => {
-                    const points = data.map(d => ({ x: new Date(d.created_at).getTime(), y: d[m] }));
-                    charts[m].updateSeries([{ data: points }]);
-                    if(data.length > 0) document.getElementById(`val-${m}`).innerText = data[data.length-1][m];
-                });
+                // Alle 4 Serien gleichzeitig mit historischen Daten füllen
+                const newSeries = Object.keys(METRICS_MAP).map(m => ({
+                    name: m,
+                    data: data.map(d => ({ x: new Date(d.created_at).getTime(), y: d[m] }))
+                }));
+                
+                chart.updateSeries(newSeries);
+
+                if(data.length > 0) {
+                    Object.keys(METRICS_MAP).forEach(m => updateLiveUI(m, data[data.length-1][m]));
+                }
             }
         }
 
-        // Umschalten zwischen Metriken (Instant!)
-        function switchMetric(m) {
-            activeMetric = m;
-            // UI Buttons anpassen
-            Object.keys(METRICS).forEach(key => {
-                document.getElementById(`btn-${key}`).classList.remove('active-metric-card');
-                document.getElementById(`layer-${key}`).classList.remove('active');
-            });
-            document.getElementById(`btn-${m}`).classList.add('active-metric-card');
-            document.getElementById(`layer-${m}`).classList.add('active');
-            document.getElementById('main-chart-title').innerText = `${METRICS[m].label} Analyse`;
+        function updateLiveUI(m, val) {
+            document.getElementById(`val-${m}`).innerText = val;
+            const percent = Math.min((val / METRICS_MAP[m].max) * 100, 100);
+            document.getElementById(`bar-${m}`).style.width = percent + '%';
         }
 
-        function changeInterval(days) {
+        function updateInterval(days) {
             currentInterval = days;
             ['i-1', 'i-5', 'i-30'].forEach(id => {
                 document.getElementById(id).classList.remove('bg-slate-900', 'text-white', 'shadow-lg');
-                document.getElementById(id).classList.add('text-slate-400');
+                document.getElementById(id).classList.add('text-slate-500');
             });
-            document.getElementById(`i-${days}`).classList.replace('text-slate-400', 'bg-slate-900');
+            document.getElementById(`i-${days}`).classList.replace('text-slate-500', 'bg-slate-900');
             document.getElementById(`i-${days}`).classList.add('text-white', 'shadow-lg');
-            updateData();
+            fetchHistory();
         }
 
         function initMqtt() {
             if (!deviceId) return;
             const client = mqtt.connect(CONFIG.mqttBroker, { username: CONFIG.mqttUser, password: CONFIG.mqttPass });
+
             client.on('connect', () => {
                 const badge = document.getElementById('status-badge');
-                badge.innerHTML = '<span class="live-dot bg-green-500 shadow-[0_0_10px_#22c55e]"></span> SYSTEM OPERATIONAL';
+                badge.innerHTML = '<span class="live-dot bg-green-500 shadow-[0_0_10px_#22c55e]"></span> NETWORK OPERATIONAL';
                 badge.classList.replace('text-slate-400', 'text-green-500');
                 client.subscribe(`esp32-${deviceId}/sensor`);
             });
+
             client.on('message', (t, msg) => {
                 const data = JSON.parse(msg.toString());
-                Object.keys(METRICS).forEach(m => {
+                const timestamp = new Date().getTime();
+
+                Object.keys(METRICS_MAP).forEach(m => {
                     if (data[m] !== undefined) {
-                        document.getElementById(`val-${m}`).innerText = data[m];
-                        // Wichtig: Alle Graphen im Hintergrund updaten!
-                        charts[m].appendData([{ data: [{ x: new Date().getTime(), y: data[m] }] }]);
+                        updateLiveUI(m, data[m]);
+                        
+                        // DER TRICK: Wir fügen die Daten JEDER Serie hinzu, 
+                        // egal ob sie gerade mit showSeries() sichtbar ist oder nicht.
+                        chart.appendData([{
+                            name: m,
+                            data: [{ x: timestamp, y: data[m] }]
+                        }]);
                     }
                 });
             });
         }
 
-        initCharts();
+        initUnifiedChart();
         if (deviceId) {
-            updateData().then(initMqtt);
+            fetchHistory().then(initMqtt);
         }
     </script>
 </body>
